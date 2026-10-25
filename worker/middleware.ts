@@ -26,7 +26,7 @@ export const authMiddleware = createMiddleware<Env>(async (c, next) => {
         return;
     }
 
-    const sessionSecret = c.env.SESSION_SECRET || 'gerinmah-secret-key';
+    const sessionSecret = c.env.SESSION_SECRET;
 
     // 네이티브 앱은 X-Client: capacitor 헤더를 보낸다. 이 경우 토큰만 신뢰하고 쿠키는 무시한다.
     // (앱은 cross-site 쿠키 삭제가 불안정하므로, 로그아웃 시 토큰만 지우면 확실히 로그아웃되도록)

@@ -178,11 +178,7 @@ export function ProductForm({
           logger.info("이미지 업로드 완료:", { imageUrl, thumbnailUrl });
         } catch (uploadError) {
           console.error("Image processing/upload failed:", uploadError);
-          toast({
-            title: "Зураг оруулахад алдаа гарлаа",
-            description: "Гэхдээ бүтээгдэхүүнийг хадгалахыг оролдож байна.",
-            variant: "destructive",
-          });
+          throw uploadError;
         }
       }
 
@@ -196,7 +192,7 @@ export function ProductForm({
         descriptionEn: data.descriptionEn || null,
         category: data.category,
         price: parseFloat(data.price),
-        stock: data.stock || 999,
+        stock: data.stock ?? 999,
         minOrderQuantity: parseFloat(data.minOrderQuantity || "1"),
         imageUrl: imageUrl || "",
         thumbnailUrl: thumbnailUrl,

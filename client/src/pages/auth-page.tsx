@@ -44,16 +44,16 @@ export default function AuthPage() {
     loginImagesData?.images && loginImagesData.images.length > 0
       ? loginImagesData.images
       : [
-          "/uploads/제목을_입력해주세요_ (2)/001.png",
-          "/uploads/제목을_입력해주세요_ (2)/002.png",
-          "/uploads/제목을_입력해주세요_ (2)/003.png",
-          "/uploads/제목을_입력해주세요_ (2)/004.png",
-          "/uploads/제목을_입력해주세요_ (2)/005.png",
-          "/uploads/제목을_입력해주세요_ (2)/006.png",
-          "/uploads/제목을_입력해주세요_ (2)/007.png",
-          "/uploads/제목을_입력해주세요_ (2)/008.png",
-          "/uploads/제목을_입력해주세요_ (2)/009.png",
-          "/uploads/제목을_입력해주세요_ (2)/010.png",
+          "/hero-meat.webp",
+          "/hero-meat.webp",
+          "/hero-meat.webp",
+          "/hero-meat.webp",
+          "/hero-meat.webp",
+          "/hero-meat.webp",
+          "/hero-meat.webp",
+          "/hero-meat.webp",
+          "/hero-meat.webp",
+          "/hero-meat.webp",
         ];
 
   // Logic for columns based on current images

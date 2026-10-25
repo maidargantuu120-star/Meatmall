@@ -1,6 +1,8 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
+import { HTTPException } from 'hono/http-exception';
+import { containsInlineImage } from './media';
 import { Bindings } from './types';
 import { authMiddleware } from './middleware';
 import { D1Storage } from './storage';
@@ -39,10 +41,36 @@ app.use('*', async (c, next) => {
 // Global middleware
 app.use('*', logger());
 app.use('*', cors({
-    origin: (origin) => origin, // Allow all origins for now
+    origin: (origin, c) => {
+        const allowed = [new URL(c.req.url).origin, c.env.BASE_URL, 'https://localhost', 'capacitor://localhost'];
+        return allowed.includes(origin) ? origin : '';
+    },
     credentials: true,
 }));
+app.use('/api/*', async (c, next) => {
+    if (!c.env.SESSION_SECRET || c.env.SESSION_SECRET.length < 32) {
+        return c.json({ message: 'Session configuration is required' }, 503);
+    }
+    const origin = c.req.header('Origin');
+    const allowed = [new URL(c.req.url).origin, c.env.BASE_URL, 'https://localhost', 'capacitor://localhost'];
+    if (!['GET', 'HEAD', 'OPTIONS'].includes(c.req.method) && origin && !allowed.includes(origin)) {
+        return c.json({ message: 'Origin not allowed' }, 403);
+    }
+    await next();
+});
 app.use('/api/*', authMiddleware);
+app.use('/api/*', async (c, next) => {
+    if (['POST', 'PUT', 'PATCH'].includes(c.req.method)) {
+        const contentType = c.req.header('content-type') || '';
+        const body = contentType.includes('application/json')
+            ? await c.req.json()
+            : contentType.includes('multipart/form-data') ? await c.req.parseBody() : null;
+        if (containsInlineImage(body)) {
+            return c.json({ message: 'Inline images are not allowed. Upload a WebP file and save its URL.' }, 400);
+        }
+    }
+    await next();
+});
 
 // Routes
 app.route('/api', authApp);
@@ -86,6 +114,7 @@ app.get('/uploads/*', async (c) => {
 });
 
 app.onError((err, c) => {
+    if (err instanceof HTTPException) return err.getResponse();
     console.error('Global Error Handler:', err);
     return c.json({
         success: false,

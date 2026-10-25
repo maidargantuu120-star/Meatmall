@@ -83,7 +83,7 @@ app.post('/', requireAdmin, async (c) => {
             category: parsedData.category || body['category'] as string,
             imageUrl: imageUrl || parsedData.imageUrl || parsedData.image_url || body['imageUrl'] as string || body['image_url'] as string || '',
             thumbnailUrl: parsedData.thumbnailUrl || parsedData.thumbnail_url || body['thumbnailUrl'] as string || body['thumbnail_url'] as string || null,
-            stock: parseInt(parsedData.stock || body['stock'] as string || '999'),
+            stock: parseInt(String(parsedData.stock ?? body['stock'] ?? '999')),
             minOrderQuantity: parseFloat(parsedData.minOrderQuantity || parsedData.min_order_quantity || body['minOrderQuantity'] as string || body['min_order_quantity'] as string || '1'),
             storeId: parsedData.storeId ? parseInt(parsedData.storeId) : (parsedData.store_id ? parseInt(parsedData.store_id) : (body['storeId'] ? parseInt(body['storeId'] as string) : (body['store_id'] ? parseInt(body['store_id'] as string) : undefined)))
         };
@@ -143,8 +143,8 @@ app.put('/:id', requireAdmin, async (c) => {
     if (parsedData.price || body['price']) {
         updateData.price = parseFloat(parsedData.price || body['price'] as string);
     }
-    if (parsedData.stock || body['stock']) {
-        updateData.stock = parseInt(parsedData.stock || body['stock'] as string);
+    if (parsedData.stock !== undefined || body['stock'] !== undefined) {
+        updateData.stock = parseInt(String(parsedData.stock ?? body['stock']));
     }
     if (parsedData.minOrderQuantity || parsedData.min_order_quantity || body['minOrderQuantity'] || body['min_order_quantity']) {
         updateData.minOrderQuantity = parseFloat(parsedData.minOrderQuantity || parsedData.min_order_quantity || body['minOrderQuantity'] as string || body['min_order_quantity'] as string);

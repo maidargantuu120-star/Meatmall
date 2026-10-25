@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { compressImage } from '@/lib/image-utils';
 import { useQueryClient } from "@tanstack/react-query";
 import { Upload, X, Check, Image } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -61,7 +62,7 @@ export function MediaUpload({ onSuccess }: MediaUploadProps) {
 
       // Create form data
       const formData = new FormData();
-      formData.append("file", file);
+      formData.append("file", await compressImage(file));
 
       // Add metadata if needed
       if (file.type.startsWith("image/")) {

@@ -22,7 +22,7 @@ const app = new Hono<Env>();
 
 // Helper to set session cookie
 async function setUserSession(c: any, userId: number) {
-    const secret = c.env.SESSION_SECRET || 'gerinmah-secret-key';
+    const secret = c.env.SESSION_SECRET;
     const isSecure = c.req.url.startsWith("https://");
     // 네이티브 앱(origin https://localhost)에서 보낸 cross-site 요청에도 쿠키가 전송되도록
     // HTTPS에서는 SameSite=None을 사용. (None은 반드시 Secure 필요 → HTTPS 전제)
@@ -93,7 +93,7 @@ app.post('/login', async (c) => {
 
         // Set session (cookie for web) + token (for native app)
         await setUserSession(c, user.id);
-        const token = await signToken(user.id, c.env.SESSION_SECRET || 'gerinmah-secret-key');
+        const token = await signToken(user.id, c.env.SESSION_SECRET);
 
         // Return user without password + auth token
         const { password: _, ...userWithoutPassword } = user as UserWithNullablePhone;
@@ -143,7 +143,7 @@ app.post('/admin/login', async (c) => {
                 const hashedPassword = await hashPassword(envAdminPassword);
                 await c.env.DB.prepare(
                     "INSERT INTO users (username, email, password, is_admin, name, created_at) VALUES (?, ?, ?, 1, 'Admin', ?)"
-                ).bind(username, 'admin@arvijix.kr', hashedPassword, new Date().toISOString()).run();
+                ).bind(username, 'admin@meatmall.local', hashedPassword, Math.floor(Date.now() / 1000)).run();
                 user = await storage.getUserByUsername(username);
                 if (!user) {
                     return c.json({ success: false, message: "Could not create admin user" }, 500);
@@ -185,7 +185,7 @@ app.post('/admin/login', async (c) => {
 
         // Set session (cookie for web) + token (for native app)
         await setUserSession(c, user.id);
-        const token = await signToken(user.id, c.env.SESSION_SECRET || 'gerinmah-secret-key');
+        const token = await signToken(user.id, c.env.SESSION_SECRET);
 
         // Return user without password + auth token
         const { password: _, ...userWithoutPassword } = user as UserWithNullablePhone;
@@ -203,7 +203,8 @@ app.post('/admin/login', async (c) => {
 app.get('/admin/check-auth', (c) => {
     const user = c.get('user');
     if (user && user.isAdmin) {
-        return c.json({ authenticated: true, user });
+        const { password: _, ...safeUser } = user;
+        return c.json({ authenticated: true, user: safeUser });
     }
     return c.json({ authenticated: false }, 401);
 });
@@ -242,7 +243,7 @@ app.post('/register', async (c) => {
 
     // Login (cookie for web) + token (for native app)
     await setUserSession(c, newUser.id);
-    const token = await signToken(newUser.id, c.env.SESSION_SECRET || 'gerinmah-secret-key');
+    const token = await signToken(newUser.id, c.env.SESSION_SECRET);
 
     const { password: _, ...userWithoutPassword } = newUser as UserWithNullablePhone;
 
@@ -291,7 +292,7 @@ app.post('/dev/login', async (c) => {
     }
 
     await setUserSession(c, user.id);
-    const token = await signToken(user.id, c.env.SESSION_SECRET || 'gerinmah-secret-key');
+    const token = await signToken(user.id, c.env.SESSION_SECRET);
     const { password: _, ...userWithoutPassword } = user as UserWithNullablePhone;
     return c.json({ ...userWithoutPassword, token });
 });
@@ -322,7 +323,7 @@ app.post('/dev/admin-login', async (c) => {
     }
 
     await setUserSession(c, user.id);
-    const token = await signToken(user.id, c.env.SESSION_SECRET || 'gerinmah-secret-key');
+    const token = await signToken(user.id, c.env.SESSION_SECRET);
     const { password: _, ...userWithoutPassword } = user as UserWithNullablePhone;
     return c.json({ ...userWithoutPassword, token });
 });
@@ -459,7 +460,7 @@ app.get('/auth/google/callback', async (c) => {
             await setUserSession(c, user.id);
             if (isApp) {
                 // 앱: 토큰을 딥링크로 전달 → 앱이 받아서 저장
-                const token = await signToken(user.id, c.env.SESSION_SECRET || 'gerinmah-secret-key');
+                const token = await signToken(user.id, c.env.SESSION_SECRET);
                 return c.redirect(`${APP_SCHEME}://auth?token=${encodeURIComponent(token)}`);
             }
             // Redirect to home or callback page on success

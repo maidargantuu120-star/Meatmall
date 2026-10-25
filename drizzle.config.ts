@@ -6,8 +6,8 @@ export default defineConfig({
   dialect: "sqlite",
   driver: "d1-http",
   dbCredentials: {
-    accountId: "a6e8bbf781104a317b3b7eb47256bcb8", // Found in error log
-    databaseId: "9314a1ba-863a-484f-b84f-1ffc4e017cce",
-    token: "To be configured",
+    accountId: process.env.CLOUDFLARE_ACCOUNT_ID || "61e0515df3f53839938d8c530946e375",
+    databaseId: process.env.CLOUDFLARE_DATABASE_ID || "aab20aff-ba88-4444-b9da-39ce2ff6dbdc",
+    token: process.env.CLOUDFLARE_API_TOKEN || "",
   },
 });

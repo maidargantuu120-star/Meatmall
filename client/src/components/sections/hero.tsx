@@ -186,7 +186,7 @@ export function Hero() {
           {/* Meat photo: under the text on mobile, diagonal right half from md */}
           <div className="relative h-56 [clip-path:polygon(0_12%,100%_0,100%_100%,0_100%)] sm:h-72 md:absolute md:inset-y-0 md:right-0 md:h-auto md:w-[56%] md:[clip-path:polygon(18%_0,100%_0,100%_100%,0_100%)]">
             <img
-              src="/hero-meat.jpg"
+              src="/hero-meat.webp"
               alt=""
               className="h-full w-full object-cover object-[50%_65%]"
               loading="eager"

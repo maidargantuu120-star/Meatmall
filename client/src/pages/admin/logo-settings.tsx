@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { compressImage } from '@/lib/image-utils';
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -49,7 +50,7 @@ export default function LogoSettings() {
       } catch (error) {
         console.error("Error fetching logo settings:", error);
         return {
-          logoUrl: "/logo-new.png", // Default logo
+          logoUrl: "/logo-new.webp", // Default logo
         };
       }
     },
@@ -101,7 +102,7 @@ export default function LogoSettings() {
 
       // Add the file if one was selected
       if (selectedFile) {
-        formData.append("logo", selectedFile);
+        formData.append("logo", await compressImage(selectedFile, 800));
       }
 
       // Only add logoUrl if no file is selected
@@ -178,7 +179,7 @@ export default function LogoSettings() {
                               <FormLabel>Лого URL</FormLabel>
                               <FormControl>
                                 <Input
-                                  placeholder="https://example.com/logo-new.png"
+                                  placeholder="https://example.com/logo-new.webp"
                                   {...field}
                                   disabled={!!selectedFile}
                                 />

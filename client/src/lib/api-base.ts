@@ -45,7 +45,7 @@ function installImageRewriter(origin: string) {
     const next = rewrite(img.getAttribute("src"));
     if (next) img.setAttribute("src", next);
   };
-  const scan = (root: ParentNode) => {
+  const scan = (root: Pick<ParentNode, 'querySelectorAll'>) => {
     root.querySelectorAll?.("img").forEach((el) => fixImg(el as HTMLImageElement));
   };
   const start = () => {

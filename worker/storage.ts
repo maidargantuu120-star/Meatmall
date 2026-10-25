@@ -1,3 +1,4 @@
+import { validateImageFile } from './media';
 import {
     products, type Product, type InsertProduct,
     orders, type Order, type InsertOrder,
@@ -487,50 +488,32 @@ export class D1Storage implements IStorage {
     }
 
     async createOrder(order: InsertOrder, items: InsertOrderItem[]): Promise<Order> {
-        // No transaction support wrapper in raw drizzle D1 yet unless we use batch
-        // But basic D1 shim supports batch. 
-        // Drizzle ORM supports batch properly for D1 now.
-        // However, keeping it simple or using batch if possible.
-        // Drizzle's D1 driver might not fully support `db.transaction` closure style the same way as pg, 
-        // it usually uses `db.batch([])`.
-        // But recent versions do support it. 
-        // Assuming standard transaction support or will degrade to sequential.
-
-        try {
-            // Sequential for limited transaction support if any issues
-            const [newOrder] = await this.db.insert(orders).values({
-                customerName: order.customerName,
-                customerEmail: order.customerEmail,
-                customerPhone: order.customerPhone,
-                customerAddress: order.customerAddress,
-                totalAmount: order.totalAmount,
-                status: "pending",
-                userId: order.userId || null
-            }).returning();
-
-            for (const item of items) {
-                await this.db.insert(orderItems).values({
-                    orderId: newOrder.id,
-                    productId: item.productId,
-                    quantity: item.quantity,
-                    price: item.price
-                });
-
-                // Update product stock
-                const product = await this.getProduct(item.productId);
-                if (product) {
-                    await this.db.update(products)
-                        .set({ stock: product.stock - item.quantity })
-                        .where(eq(products.id, item.productId));
-                }
-            }
-            return newOrder;
-        } catch (error) {
-            console.error("Error in createOrder:", error);
-            throw error;
+        // D1 batches run as one transaction. MAX(id) refers to the order inserted
+        // by the first statement; other transactions cannot interleave this batch.
+        const statements: any[] = [this.db.insert(orders).values({
+            customerName: order.customerName,
+            customerEmail: order.customerEmail,
+            customerPhone: order.customerPhone,
+            customerAddress: order.customerAddress,
+            paymentMethod: order.paymentMethod || 'bank_transfer',
+            totalAmount: order.totalAmount,
+            status: 'pending',
+            userId: order.userId || null,
+        }).returning()];
+        for (const item of items) {
+            statements.push(this.db.insert(orderItems).values({
+                orderId: sql`(SELECT MAX(id) FROM orders)`,
+                productId: item.productId,
+                quantity: item.quantity,
+                price: item.price,
+            }));
+            statements.push(this.db.update(products).set({
+                stock: sql`${products.stock} - ${item.quantity}`,
+            }).where(eq(products.id, item.productId)));
         }
+        const results = await this.db.batch(statements as [any, ...any[]]);
+        return (results[0] as Order[])[0];
     }
-
     async updateOrderStatus(id: number, status: string): Promise<Order | undefined> {
         const result = await this.db.update(orders)
             .set({ status })
@@ -1334,6 +1317,8 @@ export class D1Storage implements IStorage {
     }
 
     async uploadFile(bucket: string, path: string, file: File): Promise<string> {
+        await validateImageFile(file);
+        path = `${path.split('/')[0]}/${crypto.randomUUID()}.webp`;
         if (!this.bucket) {
             console.error("R2 Bucket not configured");
             throw new Error("R2 Bucket not configured");

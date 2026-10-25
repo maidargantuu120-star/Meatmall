@@ -46,7 +46,8 @@ export async function apiRequest(
       console.log("Request data:", requestData);
     }
 
-    const headers: Record<string, string> = requestData
+    const isFormData = requestData instanceof FormData;
+    const headers: Record<string, string> = requestData && !isFormData
       ? { "Content-Type": "application/json" }
       : {};
 
@@ -71,7 +72,7 @@ export async function apiRequest(
     const options: RequestInit = {
       method,
       headers,
-      body: requestData ? JSON.stringify(requestData) : undefined,
+      body: requestData instanceof FormData ? requestData : requestData ? JSON.stringify(requestData) : undefined,
       credentials: "include", // Important for cookies/session
       cache: "no-cache", // Prevent caching issues
       // "cors" allows cross-origin calls from the native app (origin https://localhost)

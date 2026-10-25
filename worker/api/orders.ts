@@ -91,10 +91,40 @@ app.post('/orders', async (c) => {
     }
 
     try {
+        const quantities = new Map<number, number>();
+        for (const item of items) {
+            const productId = Number(item.productId);
+            const quantity = Number(item.quantity);
+            if (!Number.isSafeInteger(productId) || !Number.isFinite(quantity) || quantity <= 0) {
+                return c.json({ message: 'Invalid order item' }, 400);
+            }
+            quantities.set(productId, (quantities.get(productId) || 0) + quantity);
+        }
+        const validatedItems = [];
+        let subtotal = 0;
+        for (const [productId, quantity] of Array.from(quantities)) {
+            const product = await storage.getProduct(productId);
+            if (!product || quantity > product.stock || quantity < (product.minOrderQuantity || 1)) {
+                return c.json({ message: 'Product unavailable or invalid quantity' }, 400);
+            }
+            validatedItems.push({ productId, quantity, price: product.price, orderId: 0 });
+            subtotal += product.price * quantity;
+        }
+        const shipping = await storage.getSiteSettingByKey('shipping_fee');
+        const shippingRules = shipping ? JSON.parse(shipping.value) : [];
+        const shippingFee = Array.isArray(shippingRules) && shippingRules.length ? Number(shippingRules[0].fee) : 6000;
+        if (!Number.isFinite(shippingFee) || shippingFee < 0) throw new Error('Invalid shipping fee');
+        for (const field of ['customerName', 'customerPhone', 'customerAddress']) {
+            if (typeof orderData[field] !== 'string' || !orderData[field].trim()) {
+                return c.json({ message: 'Customer name, phone and address are required' }, 400);
+            }
+        }
         const order = await storage.createOrder({
             ...orderData,
+            totalAmount: Math.round((subtotal + shippingFee) * 100) / 100,
+            customerEmail: orderData.customerEmail || '',
             userId: user?.id || null // Allow guest checkout if userId provided or null
-        }, items);
+        }, validatedItems);
 
         // Push after the response is sent so checkout never waits on push services
         c.executionCtx.waitUntil(Promise.all([

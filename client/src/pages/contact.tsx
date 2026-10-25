@@ -24,7 +24,7 @@ export default function Contact() {
       {/* Image Section */}
       <div className="flex-1 bg-white">
         <img
-          src="/contact.jpg"
+          src="/contact.webp"
           alt="Компанийн танилцуулга"
           className="w-full h-auto"
           onError={(e) => {

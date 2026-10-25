@@ -134,21 +134,19 @@ export async function compressImage(
       return;
     }
 
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = (event) => {
+    const objectUrl = URL.createObjectURL(file);
+    {
       const img = new Image();
-      img.src = event.target?.result as string;
       img.onload = () => {
+        URL.revokeObjectURL(objectUrl);
         const canvas = document.createElement("canvas");
         let width = img.width;
         let height = img.height;
 
         // Resize if larger than maxWidth
-        if (width > maxWidth) {
-          height = Math.round((height * maxWidth) / width);
-          width = maxWidth;
-        }
+        const scale = Math.min(1, maxWidth / Math.max(width, height));
+        width = Math.max(1, Math.round(width * scale));
+        height = Math.max(1, Math.round(height * scale));
 
         canvas.width = width;
         canvas.height = height;
@@ -163,7 +161,7 @@ export async function compressImage(
         // Convert to WebP
         canvas.toBlob(
           (blob) => {
-            if (!blob) {
+            if (!blob || blob.type !== 'image/webp') {
               reject(new Error("Canvas to Blob conversion failed"));
               return;
             }
@@ -181,9 +179,12 @@ export async function compressImage(
           quality,
         );
       };
-      img.onerror = (error) => reject(error);
-    };
-    reader.onerror = (error) => reject(error);
+      img.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        reject(new Error('Unable to decode image'));
+      };
+      img.src = objectUrl;
+    }
   });
 }
 
@@ -207,7 +208,7 @@ export async function uploadMedia(
 ): Promise<{ url: string; id?: number }> {
   try {
     const formData = new FormData();
-    formData.append("file", file);
+    formData.append("file", await compressImage(file));
 
     const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "";
     const response = await fetch(`${apiBaseUrl}/api/media`, {

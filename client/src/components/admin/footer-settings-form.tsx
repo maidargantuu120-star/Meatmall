@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { compressImage } from '@/lib/image-utils';
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -180,7 +181,7 @@ export function FooterSettingsForm() {
 
       // Add logo if one is selected
       if (selectedFile) {
-        formData.append("footerLogo", selectedFile);
+        formData.append("footerLogo", await compressImage(selectedFile, 800));
       } else if (data.logoUrl) {
         formData.append("logoUrl", data.logoUrl);
       }

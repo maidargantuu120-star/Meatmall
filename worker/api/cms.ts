@@ -14,6 +14,23 @@ type Env = {
 
 const app = new Hono<Env>();
 
+app.get('/settings/logo', async (c) => {
+    const setting = await c.get('storage').getSiteSettingByKey('logo_url');
+    return c.json({ logoUrl: setting?.value || '/logo-new.webp' });
+});
+
+app.put('/settings/logo', requireAdmin, async (c) => {
+    const storage = c.get('storage');
+    const body = await c.req.parseBody();
+    const logoUrl = body.logo instanceof File
+        ? await storage.uploadFile('media', 'logos/logo.webp', body.logo)
+        : String(body.logoUrl || '');
+    const existing = await storage.getSiteSettingByKey('logo_url');
+    if (existing) await storage.updateSiteSettingByKey('logo_url', logoUrl);
+    else await storage.createSiteSetting({ key: 'logo_url', value: logoUrl });
+    return c.json({ logoUrl });
+});
+
 // Site Content
 app.get('/site-content', async (c) => {
     const storage = c.get('storage');
@@ -131,7 +148,16 @@ app.get('/settings/footer', async (c) => {
 
 app.put('/settings/footer', requireAdmin, async (c) => {
     const storage = c.get('storage');
-    const body = await c.req.json();
+    const multipart = (c.req.header('content-type') || '').includes('multipart/form-data');
+    const body = multipart ? await c.req.parseBody() : await c.req.json();
+    if (body.footerLogo instanceof File) {
+        body.logoUrl = await storage.uploadFile('media', 'logos/footer.webp', body.footerLogo);
+    }
+    delete body.footerLogo;
+    if (multipart) {
+        if (typeof body.socialLinks === 'string') body.socialLinks = JSON.parse(body.socialLinks);
+        if (typeof body.quickLinks === 'string') body.quickLinks = JSON.parse(body.quickLinks);
+    }
     const settings = await storage.updateFooterSettings(body);
     return c.json(settings);
 });
@@ -142,7 +168,7 @@ app.get('/settings/site-name', async (c) => {
     const setting = await storage.getSiteSettingByKey('site_name');
 
     if (!setting) {
-        return c.json({ siteName: "Nice Meat махны дэлгүүр" }); // Default
+        return c.json({ siteName: "Meatmall" });
     }
 
     return c.json({ siteName: setting.value });
@@ -306,16 +332,16 @@ app.get('/settings/login-images', async (c) => {
         // Return default images from R2 storage if not set
         return c.json({
             images: [
-                "/uploads/제목을_입력해주세요_ (2)/001.png",
-                "/uploads/제목을_입력해주세요_ (2)/002.png",
-                "/uploads/제목을_입력해주세요_ (2)/003.png",
-                "/uploads/제목을_입력해주세요_ (2)/004.png",
-                "/uploads/제목을_입력해주세요_ (2)/005.png",
-                "/uploads/제목을_입력해주세요_ (2)/006.png",
-                "/uploads/제목을_입력해주세요_ (2)/007.png",
-                "/uploads/제목을_입력해주세요_ (2)/008.png",
-                "/uploads/제목을_입력해주세요_ (2)/009.png",
-                "/uploads/제목을_입력해주세요_ (2)/010.png",
+                "/hero-meat.webp",
+                "/hero-meat.webp",
+                "/hero-meat.webp",
+                "/hero-meat.webp",
+                "/hero-meat.webp",
+                "/hero-meat.webp",
+                "/hero-meat.webp",
+                "/hero-meat.webp",
+                "/hero-meat.webp",
+                "/hero-meat.webp",
             ]
         });
     }

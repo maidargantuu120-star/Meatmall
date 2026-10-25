@@ -24,3 +24,4 @@ update_admin.sql
 .wrangler/
 data/backups/
 attached_assets/
+.deployment/
