@@ -699,7 +699,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           user = await storage.createUser({
             username: ADMIN_USERNAME,
             password: await hashPassword(ADMIN_PASSWORD),
-            email: 'admin@example.com',
+            email: 'maidargantuu120@gmail.com',
             name: 'Administrator'
           });
         } catch (createError) {

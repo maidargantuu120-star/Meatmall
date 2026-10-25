@@ -984,7 +984,7 @@ export class D1Storage implements IStorage {
                     description: settings.description || "Чанартай махны бүтээгдэхүүн",
                     address: settings.address || "Улаанбаатар хот, Монгол улс",
                     phone: settings.phone || "976-00-000000",
-                    email: settings.email || "info@gerinmah.mn",
+                    email: settings.email || "maidargantuu120@gmail.com",
                     copyrightText: settings.copyrightText || `© ${new Date().getFullYear()} Герин Мах. Бүх эрх хуулиар хамгаалагдсан.`,
                     logoUrl: settings.logoUrl,
                     socialLinks: settings.socialLinks || {},

@@ -158,7 +158,7 @@ export default function AdminLogin() {
                     <FormItem>
                       <FormLabel>И-мэйл</FormLabel>
                       <FormControl>
-                        <Input placeholder="admin@example.com" {...field} />
+                        <Input placeholder="maidargantuu120@gmail.com" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

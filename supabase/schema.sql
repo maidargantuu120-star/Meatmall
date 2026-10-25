@@ -177,7 +177,7 @@ CREATE POLICY "Enable update for all users" ON orders FOR UPDATE USING (true);
 
 -- Create admin user
 INSERT INTO users (username, password, email, name, is_admin) 
-VALUES ('admin', '$2b$10$xxxxxxxxxxxxxxxxxxx', 'admin@elbeg.com', 'Admin', true)
+VALUES ('admin', '$2b$10$xxxxxxxxxxxxxxxxxxx', 'maidargantuu120@gmail.com', 'Admin', true)
 ON CONFLICT (username) DO NOTHING;
 
 -- Insert default categories
@@ -340,7 +340,7 @@ VALUES (
   'Чанартай махны бүтээгдэхүүн',
   '대전광역시 동구 계족로 489번길 상가동 112호 용전동 한숲아파트',
   '010 5940 0081',
-  'elbegmeat@example.com',
+  'maidargantuu120@gmail.com',
   '© 2025 Элбэг мах хүнс. Бүх эрх хуулиар хамгаалагдсан.'
 )
 ON CONFLICT DO NOTHING;

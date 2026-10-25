@@ -11,6 +11,7 @@ import {
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
 import { Link } from "wouter";
+import { BRAND } from "@/lib/brand";
 
 export default function Privacy() {
   return (
@@ -151,7 +152,7 @@ export default function Privacy() {
                   холбогдоно уу:
                 </p>
                 <p className="mt-2">
-                  <strong>Имэйл:</strong> arvijix@gmail.com
+                  <strong>Имэйл:</strong> <a href={`mailto:${BRAND.email}`}>{BRAND.email}</a>
                   <br />
                   <strong>Утас:</strong> 010-8082-9929
                 </p>

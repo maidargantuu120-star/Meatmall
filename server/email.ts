@@ -9,7 +9,7 @@ const mailService = new MailService();
 mailService.setApiKey(process.env.SENDGRID_API_KEY);
 
 // 발신자 이메일 주소 (SendGrid에서 인증된 도메인/이메일)
-const FROM_EMAIL = 'noreply@arvijix.com'; // 실제 SendGrid에서 인증된 이메일로 변경하세요
+const FROM_EMAIL = 'maidargantuu120@gmail.com'; // 실제 SendGrid에서 인증된 이메일로 변경하세요
 
 interface WelcomeEmailData {
   userName: string;
@@ -44,7 +44,7 @@ export async function sendWelcomeEmail(userData: WelcomeEmailData): Promise<bool
         userName: userData.userName,
         companyName: 'Арвижих махны дэлгүүр',
         loginUrl: 'https://gerinmah.replit.app/auth',
-        supportEmail: 'support@arvijix.com'
+        supportEmail: 'maidargantuu120@gmail.com'
       }
     };
 
@@ -78,7 +78,7 @@ export async function sendOrderConfirmationEmail(orderData: OrderConfirmationDat
         companyPhone: '+976 8888 8888',
         companyAddress: '울란바토르 시',
         trackingUrl: `https://gerinmah.replit.app/profile?order=${orderData.orderNumber}`,
-        supportEmail: 'support@arvijix.com'
+        supportEmail: 'maidargantuu120@gmail.com'
       }
     };
 
@@ -97,7 +97,7 @@ export async function sendOrderConfirmationEmail(orderData: OrderConfirmationDat
 export async function sendNewOrderNotificationEmail(orderData: OrderConfirmationData): Promise<boolean> {
   try {
     const msg = {
-      to: 'admin@arvijix.com', // 관리자 이메일
+      to: 'maidargantuu120@gmail.com', // 관리자 이메일
       from: FROM_EMAIL,
       templateId: 'd-new-order-notification-template-id', // SendGrid에서 생성한 실제 템플릿 ID로 변경하세요
       dynamicTemplateData: {

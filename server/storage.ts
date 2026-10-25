@@ -362,7 +362,7 @@ export class DatabaseStorage implements IStorage {
         await db.insert(users).values({
           username: "admin",
           password: hashedPassword,
-          email: "admin@gerinmah.mn",
+          email: "maidargantuu120@gmail.com",
           name: "Administrator",
           isAdmin: true
         });
@@ -490,7 +490,7 @@ export class DatabaseStorage implements IStorage {
           {
             key: "contact_info",
             title: "Холбоо барих мэдээлэл",
-            content: "<p>Хаяг: Улаанбаатар хот, Сүхбаатар дүүрэг, 1-р хороо</p><p>Утас: +976 9911-2233</p><p>И-мэйл: info@gerinmah.mn</p>",
+            content: "<p>Хаяг: Улаанбаатар хот, Сүхбаатар дүүрэг, 1-р хороо</p><p>Утас: +976 9911-2233</p><p>И-мэйл: maidargantuu120@gmail.com</p>",
             active: true
           },
           {
@@ -615,7 +615,7 @@ export class DatabaseStorage implements IStorage {
               coverImageUrl: "/uploads/max-meat-cover.jpg",
               address: "Сөүл хот, Каннам дүүрэг, 123 гудамж",
               phone: "010-1234-5678",
-              email: "info@maxmeat.mn",
+              email: "maidargantuu120@gmail.com",
               openingHours: {},
               categoryId: meatStoreCategory.id,
               userId: adminUser.id,
@@ -1546,7 +1546,7 @@ export class DatabaseStorage implements IStorage {
             description: settings.description || "Чанартай махны бүтээгдэхүүн",
             address: settings.address || "Улаанбаатар хот, Монгол улс",
             phone: settings.phone || "976-00-000000",
-            email: settings.email || "info@gerinmah.mn",
+            email: settings.email || "maidargantuu120@gmail.com",
             copyrightText: settings.copyrightText || `© ${new Date().getFullYear()} Герин Мах. Бүх эрх хуулиар хамгаалагдсан.`,
             logoUrl: settings.logoUrl,
             socialLinks: settings.socialLinks || {},

@@ -143,7 +143,7 @@ app.post('/admin/login', async (c) => {
                 const hashedPassword = await hashPassword(envAdminPassword);
                 await c.env.DB.prepare(
                     "INSERT INTO users (username, email, password, is_admin, name, created_at) VALUES (?, ?, ?, 1, 'Admin', ?)"
-                ).bind(username, 'admin@meatmall.local', hashedPassword, Date.now()).run();
+                ).bind(username, 'maidargantuu120@gmail.com', hashedPassword, Date.now()).run();
                 user = await storage.getUserByUsername(username);
                 if (!user) {
                     return c.json({ success: false, message: "Could not create admin user" }, 500);
@@ -299,7 +299,7 @@ app.post('/dev/login', async (c) => {
 
 // Same guards as /dev/login: signs in a local admin so /admin can be developed without
 // the production admin password.
-const DEV_ADMIN_EMAIL = 'dev-admin@meatmall.local';
+const DEV_ADMIN_EMAIL = 'dev-maidargantuu120@gmail.com';
 
 app.post('/dev/admin-login', async (c) => {
     if (!isLocalDevRequest(c)) {
@@ -510,7 +510,7 @@ app.get('/setup-admin', async (c) => {
     }
     try {
         const storage = c.get('storage');
-        const email = c.req.query('email') || 'admin@example.com';
+        const email = c.req.query('email') || 'maidargantuu120@gmail.com';
         const username = c.req.query('username') || 'admin';
         const password = c.req.query('password');
         if (!password) {

@@ -401,7 +401,7 @@ export function FooterSettingsForm() {
                         Имэйл хаяг
                       </FormLabel>
                       <FormControl>
-                        <Input placeholder="info@gerinmah.mn" {...field} />
+                        <Input placeholder="maidargantuu120@gmail.com" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

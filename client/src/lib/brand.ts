@@ -1,6 +1,7 @@
 // Brand identity and contact channels used across the storefront
 export const BRAND = {
   name: "Meat Mall",
+  email: "maidargantuu120@gmail.com",
   phone: "010-8082-9929",
   facebookUrl: "https://www.facebook.com/meatmall.mahnii.delguur",
   messengerUrl: "https://m.me/meatmall.mahnii.delguur",

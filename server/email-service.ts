@@ -15,7 +15,7 @@ interface EmailData {
 }
 
 // 기본 발신자 이메일 (SendGrid에서 인증된 이메일 사용)
-const DEFAULT_FROM_EMAIL = 'noreply@gerinmah.com'; // 실제 인증된 이메일로 변경 필요
+const DEFAULT_FROM_EMAIL = 'maidargantuu120@gmail.com'; // 실제 인증된 이메일로 변경 필요
 
 /**
  * SendGrid 동적 템플릿을 사용하여 이메일 전송
@@ -88,7 +88,7 @@ export async function sendOrderConfirmationEmail(
       ...orderData,
       websiteName: 'Арвижих махны дэлгүүр',
       orderDate: new Date().toLocaleDateString('ko-KR'),
-      supportEmail: 'support@gerinmah.com',
+      supportEmail: 'maidargantuu120@gmail.com',
     },
   });
 }
