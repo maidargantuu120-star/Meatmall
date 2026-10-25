@@ -1,7 +1,8 @@
 import { validateImageFile } from './media';
+import type { OrderEmailReceipt } from '../shared/order-email';
 import {
     products, type Product, type InsertProduct,
-    orders, type Order, type InsertOrder,
+    orders, orderEmails, type Order, type InsertOrder,
     orderItems, type OrderItem, type InsertOrderItem,
     users, type User, type UserWithNullablePhone, type InsertUser,
     siteContent, type SiteContent, type InsertSiteContent,
@@ -43,7 +44,7 @@ export interface IStorage {
     getOrdersWithItems(startDate?: Date, endDate?: Date): Promise<(Order & { items: (OrderItem & { product: Product })[] })[]>;
     getOrder(id: number): Promise<Order | undefined>;
     getOrderWithItems(id: number): Promise<(Order & { items: (OrderItem & { product: Product })[] }) | undefined>;
-    createOrder(order: InsertOrder, items: InsertOrderItem[]): Promise<Order>;
+    createOrder(order: InsertOrder, items: InsertOrderItem[], receipt?: OrderEmailReceipt): Promise<Order>;
     updateOrderStatus(id: number, status: string): Promise<Order | undefined>;
     deleteOrder(id: number): Promise<boolean>;
 
@@ -487,7 +488,7 @@ export class D1Storage implements IStorage {
         return { ...order, items: itemsWithProducts };
     }
 
-    async createOrder(order: InsertOrder, items: InsertOrderItem[]): Promise<Order> {
+    async createOrder(order: InsertOrder, items: InsertOrderItem[], receipt?: OrderEmailReceipt): Promise<Order> {
         // D1 batches run as one transaction. MAX(id) refers to the order inserted
         // by the first statement; other transactions cannot interleave this batch.
         const statements: any[] = [this.db.insert(orders).values({
@@ -500,6 +501,13 @@ export class D1Storage implements IStorage {
             status: 'pending',
             userId: order.userId || null,
         }).returning()];
+        if (receipt?.customerEmail) {
+            statements.push(this.db.insert(orderEmails).values({
+                orderId: sql`(SELECT MAX(id) FROM orders)`,
+                payload: JSON.stringify(receipt),
+                updatedAt: Date.now(),
+            }));
+        }
         for (const item of items) {
             statements.push(this.db.insert(orderItems).values({
                 orderId: sql`(SELECT MAX(id) FROM orders)`,
@@ -525,15 +533,12 @@ export class D1Storage implements IStorage {
 
     async deleteOrder(id: number): Promise<boolean> {
         try {
-            // First delete associated order items
-            await this.db.delete(orderItems)
-                .where(eq(orderItems.orderId, id));
-
-            // Then delete the order
-            const result = await this.db.delete(orders)
-                .where(eq(orders.id, id));
-
-            return result.meta.changes > 0;
+            const results = await this.db.batch([
+                this.db.delete(orderEmails).where(eq(orderEmails.orderId, id)),
+                this.db.delete(orderItems).where(eq(orderItems.orderId, id)),
+                this.db.delete(orders).where(eq(orders.id, id)),
+            ]);
+            return results[2].meta.changes > 0;
         } catch (error) {
             console.error("Error deleting order:", error);
             return false;

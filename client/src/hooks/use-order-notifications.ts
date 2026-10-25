@@ -19,8 +19,8 @@ export function useOrderNotifications() {
     },
     // Only fetch if user is admin
     enabled: !!user && isAdmin,
-    // Poll every 15 seconds
-    refetchInterval: 15000,
+    // Fallback for browsers without push; push messages refresh immediately.
+    refetchInterval: 5000,
     // Refetch even when window is not focused for notifications
     refetchIntervalInBackground: true,
   });

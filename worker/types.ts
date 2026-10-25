@@ -9,6 +9,9 @@ export type Bindings = {
     BASE_URL?: string;
     ADMIN_USERNAME?: string;
     ADMIN_PASSWORD?: string;
+    BREVO_API_KEY?: string;
+    ORDER_EMAIL_FROM?: string;
+    ORDER_EMAIL_REPLY_TO?: string;
     // "true" only in local .env: enables POST /api/dev/login (test user, no Google). Never set in Cloudflare.
     DEV_LOGIN?: string;
     // Web Push (VAPID). Push is silently off when any of these is missing.

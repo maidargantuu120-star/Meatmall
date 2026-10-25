@@ -247,6 +247,8 @@ export default function Checkout() {
         customerPhone: data.customerPhone,
         customerAddress: data.customerAddress,
         paymentMethod: data.paymentMethod,
+        selectedBankAccount: data.selectedBankAccount,
+        transferAccountHolder: data.transferAccountHolder,
         totalAmount: orderTotalWithShipping,
         status: "pending",
       };
