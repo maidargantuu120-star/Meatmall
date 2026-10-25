@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { Check, Copy, MoreVertical, PlusSquare, Share, X } from "lucide-react";
 import { useLanguage } from "@/contexts/language-context";
+import { getInstallPlatform, getInstallUrl, getAndroidBrowserIntent } from '@/lib/install';
 
 // Chrome / Samsung Internet event fired when the site is installable
 interface BeforeInstallPromptEvent extends Event {
@@ -30,15 +31,11 @@ function rememberDismiss() {
 }
 
 function detectPlatform() {
-  const ua = navigator.userAgent;
-  const isIOS =
-    /iPad|iPhone|iPod/.test(ua) ||
-    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-  const isInApp = /FBAN|FBAV|FB_IAB|Instagram|KAKAOTALK|Line\//i.test(ua);
+  const platform = getInstallPlatform(navigator.userAgent, navigator.platform, navigator.maxTouchPoints);
   const isStandalone =
     window.matchMedia("(display-mode: standalone)").matches ||
     (navigator as any).standalone === true;
-  return { isIOS, isInApp, isStandalone };
+  return { ...platform, isStandalone };
 }
 
 type Guide = "ios" | "android" | "inapp" | null;
@@ -52,13 +49,21 @@ export function InstallBanner() {
   const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(null);
   const [guide, setGuide] = useState<Guide>(null);
   const [copied, setCopied] = useState(false);
+  const [copyFailed, setCopyFailed] = useState(false);
+  const platform = detectPlatform();
+  const installUrl = getInstallUrl(window.location.origin);
 
   useEffect(() => {
     // The Capacitor app build is already a native app
     if (import.meta.env.VITE_API_BASE_URL) return;
     const { isStandalone } = detectPlatform();
-    if (isStandalone || isDismissedRecently()) return;
-    setVisible(true);
+    if (isStandalone) return;
+    const requested = new URLSearchParams(window.location.search).get('install') === '1';
+    setVisible(requested || !isDismissedRecently());
+    if (requested) {
+      const { isIOS, isInApp } = detectPlatform();
+      setGuide(isInApp ? 'inapp' : isIOS ? 'ios' : 'android');
+    }
 
     const onPrompt = (e: Event) => {
       e.preventDefault(); // keep it for our own button
@@ -67,6 +72,7 @@ export function InstallBanner() {
     const onInstalled = () => {
       setVisible(false);
       setDeferred(null);
+      setGuide(null);
     };
     window.addEventListener("beforeinstallprompt", onPrompt);
     window.addEventListener("appinstalled", onInstalled);
@@ -79,11 +85,16 @@ export function InstallBanner() {
   if (!visible || location.startsWith("/admin")) return null;
 
   const handleOpen = async () => {
-    if (deferred) {
-      await deferred.prompt();
-      const { outcome } = await deferred.userChoice;
-      setDeferred(null);
-      if (outcome === "accepted") setVisible(false);
+    if (deferred && !platform.isInApp) {
+      try {
+        await deferred.prompt();
+        const { outcome } = await deferred.userChoice;
+        if (outcome === "accepted") { setVisible(false); setGuide(null); }
+      } catch {
+        setGuide(platform.isIOS ? 'ios' : 'android');
+      } finally {
+        setDeferred(null);
+      }
       return;
     }
     const { isIOS, isInApp } = detectPlatform();
@@ -97,10 +108,11 @@ export function InstallBanner() {
 
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(window.location.origin);
+      await navigator.clipboard.writeText(installUrl);
       setCopied(true);
+      setCopyFailed(false);
     } catch {
-      // Clipboard blocked: the URL is shown in the sheet so it can be copied by hand
+      setCopyFailed(true);
     }
   };
 
@@ -158,10 +170,11 @@ export function InstallBanner() {
           onClick={() => setGuide(null)}
         >
           <div
-            className="w-full rounded-t-3xl bg-white px-5 pb-8 pt-5 text-ink"
+            className="max-h-[90dvh] w-full overflow-y-auto rounded-t-3xl bg-white px-5 pb-8 pt-5 text-ink"
             onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-label={t.install.title}
+            aria-modal="true"
           >
             <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-ink/15" />
             <div className="flex items-center gap-3">
@@ -175,10 +188,22 @@ export function InstallBanner() {
             {guide === "inapp" ? (
               <div className="mt-5 space-y-3">
                 <p className="text-sm leading-relaxed text-ink/80">{t.install.inApp}</p>
+                {platform.isAndroid && (
+                  <a href={getAndroidBrowserIntent(installUrl)}
+                    className="flex min-h-12 items-center justify-center rounded-xl bg-ink px-4 py-3 text-sm font-bold text-white"
+                    data-testid="install-external-browser">
+                    {t.install.openBrowser}
+                  </a>
+                )}
+                <ol className="list-decimal space-y-2 pl-5 text-sm leading-relaxed text-ink/80">
+                  <li>{t.install.inAppMenu}</li>
+                  <li>{platform.isIOS ? t.install.inAppSafari : t.install.inAppBrowser}</li>
+                  <li>{platform.isIOS ? t.install.iosAdd : t.install.androidAdd}</li>
+                </ol>
                 <div className="flex items-center gap-2 rounded-xl bg-surface p-2 pl-3">
-                  <span className="min-w-0 flex-1 truncate text-sm text-ink/70">
-                    {window.location.origin}
-                  </span>
+                  <input readOnly value={installUrl} aria-label={t.install.copyLink}
+                    onFocus={event => event.target.select()}
+                    className="min-w-0 flex-1 bg-transparent text-sm text-ink/70" />
                   <button
                     type="button"
                     onClick={handleCopy}
@@ -188,6 +213,7 @@ export function InstallBanner() {
                     {copied ? t.install.copied : t.install.copyLink}
                   </button>
                 </div>
+                {copyFailed && <p role="status" className="text-sm text-ink/70">{t.install.copyManually}</p>}
               </div>
             ) : (
               <ol className="mt-5 space-y-3">
@@ -201,6 +227,12 @@ export function InstallBanner() {
                   </li>
                 ))}
               </ol>
+            )}
+
+            {guide !== 'inapp' && deferred && (
+              <button type="button" onClick={handleOpen}
+                className="mt-5 h-12 w-full rounded-xl bg-brand font-bold text-white"
+                data-testid="install-native-prompt">{t.install.open}</button>
             )}
 
             <button

@@ -72,6 +72,11 @@ export interface Translations {
     androidMenu: string;
     androidAdd: string;
     inApp: string;
+    openBrowser: string;
+    inAppMenu: string;
+    inAppSafari: string;
+    inAppBrowser: string;
+    copyManually: string;
     copyLink: string;
     copied: string;
     gotIt: string;
@@ -310,7 +315,12 @@ const translations: Record<Language, Translations> = {
       androidMenu: "Хөтчийн цэс (⋮ эсвэл ≡)-ийг дарна",
       androidAdd: "«Нүүр дэлгэцэнд нэмэх» эсвэл «Апп суулгах»-ыг сонгоно",
       inApp:
-        "Энэ апп доторх хөтчөөс нүүр дэлгэцэнд нэмэх боломжгүй. Холбоосыг хуулаад Safari эсвэл Chrome-оор нээнэ үү.",
+        "Facebook, Messenger зэрэг аппын дотор суулгах үйлдэл хязгаарлагддаг. Гадна хөтчөөр нээгээд нүүр дэлгэцэнд нэмнэ үү.",
+      openBrowser: "Гадна хөтчөөр нээх",
+      inAppMenu: "Аппын дээд эсвэл доод хэсгийн ⋯, ⋮ эсвэл хуваалцах цэсийг нээнэ.",
+      inAppSafari: "«Safari-д нээх» эсвэл «Хөтчөөр нээх»-ийг сонгоод Safari-ийн «Хуваалцах» товчийг дарна.",
+      inAppBrowser: "«Хөтчөөр нээх» (Open in browser)-ийг сонгоно. Нээгдэхгүй бол холбоосыг Samsung Internet, Chrome эсвэл өөр хөтөч рүү хуулна.",
+      copyManually: "Автоматаар хуулж чадсангүй. Холбоосын талбарыг удаан дарж хуулна уу.",
       copyLink: "Холбоос хуулах",
       copied: "Хуулагдлаа",
       gotIt: "Ойлголоо",
@@ -566,7 +576,12 @@ const translations: Record<Language, Translations> = {
       androidMenu: "Откройте меню браузера (⋮ или ≡)",
       androidAdd: "Выберите «Добавить на главный экран» или «Установить приложение»",
       inApp:
-        "Из встроенного браузера этого приложения добавить нельзя. Скопируйте ссылку и откройте её в Safari или Chrome.",
+        "Facebook, Messenger и другие приложения ограничивают установку во встроенном браузере. Откройте сайт во внешнем браузере и добавьте его на главный экран.",
+      openBrowser: "Открыть во внешнем браузере",
+      inAppMenu: "Откройте меню ⋯, ⋮ или «Поделиться» вверху или внизу приложения.",
+      inAppSafari: "Выберите «Открыть в Safari» или «Открыть в браузере», затем нажмите «Поделиться» в Safari.",
+      inAppBrowser: "Выберите «Открыть в браузере». Если не получилось, вставьте ссылку в Samsung Internet, Chrome или другой браузер.",
+      copyManually: "Не удалось скопировать автоматически. Нажмите и удерживайте поле ссылки, чтобы скопировать её.",
       copyLink: "Скопировать ссылку",
       copied: "Скопировано",
       gotIt: "Понятно",
@@ -823,7 +838,12 @@ const translations: Record<Language, Translations> = {
       androidMenu: "Open the browser menu (⋮ or ≡)",
       androidAdd: "Choose “Add to Home screen” or “Install app”",
       inApp:
-        "This in-app browser can't add to the home screen. Copy the link and open it in Safari or Chrome.",
+        "Facebook, Messenger and other apps restrict installation in their built-in browsers. Open the site in an external browser, then add it to your home screen.",
+      openBrowser: "Open in external browser",
+      inAppMenu: "Open the app’s ⋯, ⋮ or Share menu at the top or bottom of the screen.",
+      inAppSafari: "Choose “Open in Safari” or “Open in browser”, then tap Share in Safari.",
+      inAppBrowser: "Choose “Open in browser”. If it does not open, paste the link into Samsung Internet, Chrome or another browser.",
+      copyManually: "Automatic copying was blocked. Press and hold the link field to copy it.",
       copyLink: "Copy link",
       copied: "Copied",
       gotIt: "Got it",
