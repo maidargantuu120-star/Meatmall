@@ -1,5 +1,4 @@
 name = "meatmall"
-account_id = "61e0515df3f53839938d8c530946e375"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 pages_build_output_dir = "dist/public"
