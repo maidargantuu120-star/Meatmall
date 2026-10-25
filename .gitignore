@@ -1,0 +1,26 @@
+node_modules
+dist
+.DS_Store
+server/public
+vite.config.ts.*
+*.tar.gz
+
+# Capacitor: 생성된 네이티브 프로젝트 (capacitor.config.ts + assets/ 로 재생성 가능)
+android/
+ios/
+*.apk
+*.aab
+# Secrets and local-only data (never commit)
+.env
+.env.*
+!.env.example
+!.env.capacitor
+.dev.vars
+login.json
+cookies.txt
+debug_user.sql
+reset_password.sql
+update_admin.sql
+.wrangler/
+data/backups/
+attached_assets/

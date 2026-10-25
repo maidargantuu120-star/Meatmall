@@ -1,0 +1,353 @@
+/* Google Fonts loaded async via index.html */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+
+    --primary: 349 100% 45%;
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 222.2 84% 4.9%;
+
+    --radius: 0.75rem;
+
+    /* Brand tokens - see design/design-system.md */
+    --brand: 349 100% 45%;
+    --brand-deep: 350 100% 35%;
+    --ink: 0 0% 8%;
+    --bark: 30 19% 15%;
+    --surface: 0 0% 97%;
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 210 40% 98%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 212.7 26.8% 83.9%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    /* Pretendard has no Cyrillic: Mongolian text renders in Inter (Pretendard's Latin base) */
+    font-family: 'Pretendard Variable', Pretendard, 'Inter', -apple-system, sans-serif;
+  }
+}
+
+@layer components {
+
+  /* Overrides for previous gradient classes to use the new brand color */
+  .gradient-red-blue {
+    @apply bg-brand !important;
+    background: hsl(var(--brand)) !important;
+  }
+
+  .gradient-nav {
+    @apply bg-brand !important;
+    background: hsl(var(--brand)) !important;
+  }
+
+  .text-gradient-red-blue {
+    @apply text-brand !important;
+    background: none !important;
+    -webkit-text-fill-color: initial !important;
+  }
+
+  .gradient-text {
+    @apply text-brand !important;
+    background: none !important;
+    -webkit-text-fill-color: initial !important;
+  }
+
+  .text-gradient-text {
+    @apply text-brand !important;
+    background: none !important;
+    -webkit-text-fill-color: initial !important;
+  }
+
+  .bg-gradient-to-r.from-\[\#FF2D2D\].to-\[\#2D55FF\] {
+    @apply bg-brand !important;
+    background-image: none !important;
+  }
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  /* IE and Edge */
+  scrollbar-width: none;
+  /* Firefox */
+}
+
+/* 트렌디한 토스트 알림을 위한 애니메이션 */
+@keyframes bounceInUp {
+
+  from,
+  60%,
+  75%,
+  90%,
+  to {
+    animation-timing-function: cubic-bezier(0.215, 0.61, 0.355, 1);
+  }
+
+  from {
+    opacity: 0;
+    transform: translate3d(0, 30px, 0);
+  }
+
+  60% {
+    opacity: 1;
+    transform: translate3d(0, -10px, 0);
+  }
+
+  75% {
+    transform: translate3d(0, 5px, 0);
+  }
+
+  90% {
+    transform: translate3d(0, -2px, 0);
+  }
+
+  to {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.animate-bounceInUp {
+  animation: bounceInUp 0.6s ease-out;
+}
+
+/* Hide scrollbar for webkit browsers */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  /* IE and Edge */
+  scrollbar-width: none;
+  /* Firefox */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+  /* Chrome, Safari, Opera */
+}
+
+/* Auto-scrolling horizontal carousel animation */
+@keyframes scroll-x {
+  0% {
+    transform: translateX(0);
+  }
+
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-scroll-x {
+  animation: scroll-x 15s linear infinite;
+}
+
+.animate-scroll-x:hover {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-scroll-x {
+    animation: none;
+  }
+}
+
+/* Order tracker rider (My Page). Spec + preview: design/motion/order-tracker.html */
+.mm-rider .mm-wheel,
+.mm-rider .mm-puff circle {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.mm-rider .mm-speed,
+.mm-rider .mm-puff {
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.mm-rider--moving .mm-wheel {
+  animation: mm-spin 0.45s linear infinite;
+}
+
+.mm-rider--moving .mm-bob {
+  animation: mm-bob 0.3s ease-in-out infinite alternate;
+}
+
+.mm-rider--moving .mm-speed,
+.mm-rider--moving .mm-puff {
+  opacity: 1;
+}
+
+.mm-rider--moving .mm-speed path {
+  stroke-dasharray: 8 12;
+  animation: mm-speed 0.4s linear infinite;
+}
+
+.mm-rider--moving .mm-puff circle {
+  animation: mm-puff 0.9s ease-out infinite;
+}
+
+.mm-rider--moving .mm-puff circle:nth-child(2) {
+  animation-delay: 0.35s;
+}
+
+.mm-rider--idle .mm-bob {
+  animation: mm-bob 1.4s ease-in-out infinite alternate;
+}
+
+.mm-rider--arrived .mm-bob {
+  animation: mm-hop 0.6s 1.4s ease-out 1;
+}
+
+.mm-check {
+  transform: scale(0);
+  animation: mm-pop 0.45s 1.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.mm-stripes {
+  background-image: linear-gradient(45deg,
+      rgb(255 255 255 / 0.28) 25%,
+      transparent 25% 50%,
+      rgb(255 255 255 / 0.28) 50% 75%,
+      transparent 75%);
+  background-size: 16px 16px;
+  animation: mm-stripes 0.8s linear infinite;
+}
+
+@keyframes mm-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes mm-bob {
+  from {
+    transform: translateY(0);
+  }
+
+  to {
+    transform: translateY(-1.5px);
+  }
+}
+
+@keyframes mm-speed {
+  to {
+    stroke-dashoffset: -20;
+  }
+}
+
+@keyframes mm-puff {
+  0% {
+    transform: translate(0, 0) scale(0.6);
+    opacity: 0.9;
+  }
+
+  100% {
+    transform: translate(-10px, -6px) scale(1.4);
+    opacity: 0;
+  }
+}
+
+@keyframes mm-hop {
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  40% {
+    transform: translateY(-6px);
+  }
+
+  70% {
+    transform: translateY(0);
+  }
+
+  85% {
+    transform: translateY(-2px);
+  }
+}
+
+@keyframes mm-stripes {
+  to {
+    background-position: 16px 0;
+  }
+}
+
+@keyframes mm-pop {
+  to {
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+  .mm-rider *,
+  .mm-stripes {
+    animation: none !important;
+  }
+
+  .mm-check {
+    animation: none;
+    transform: scale(1);
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "elbeg-dev",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "concurrently",
+        "vite --port 5180 --strictPort",
+        "npm run watch:worker",
+        "wrangler pages dev"
+      ],
+      "port": 5180,
+      "autoPort": false
+    }
+  ]
+}

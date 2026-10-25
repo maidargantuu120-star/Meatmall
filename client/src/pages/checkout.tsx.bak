@@ -1,0 +1,474 @@
+import { useState, useEffect } from "react";
+import { useLocation } from "wouter";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Navbar } from "@/components/navbar";
+import { Footer } from "@/components/footer";
+import { CartItemComponent } from "@/components/ui/cart-item";
+import { useCart } from "@/hooks/use-cart";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
+import { formatPrice } from "@/lib/utils";
+import { useQuery } from "@tanstack/react-query";
+import { insertOrderSchema, BankAccount } from "@shared/schema";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+// Extend the order schema for checkout form validation
+const checkoutFormSchema = z.object({
+  customerName: z.string().min(2, {
+    message: "Нэр хамгийн багадаа 2 тэмдэгт байх ёстой",
+  }),
+  customerPhone: z.string()
+    .regex(
+      /^010-\d{4}-\d{4}$/, 
+      { message: "Утасны дугаар 010-0000-0000 хэлбэртэй байх ёстой" }
+    ),
+  customerEmail: z.string().email({
+    message: "Имэйл хаягаа зөв оруулна уу",
+  }),
+  customerAddress: z.string().min(5, {
+    message: "Хүргэлтийн хаяг хамгийн багадаа 5 тэмдэгт байх ёстой",
+  }),
+  paymentMethod: z.enum(["bank_transfer"], {
+    required_error: "Төлбөрийн хэлбэрээ сонгоно уу",
+  }),
+  totalAmount: z.string().optional(), // Make this optional since we calculate it
+});
+
+type CheckoutFormValues = z.infer<typeof checkoutFormSchema>;
+
+export default function Checkout() {
+  const { items, totalPrice, clearCart } = useCart();
+  const { toast } = useToast();
+  const [location, setLocation] = useLocation();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [shippingFee, setShippingFee] = useState(0);
+  
+  // Fetch shipping fee from server
+  const { data: shippingFeeData, isLoading: isLoadingShippingFee } = useQuery({
+    queryKey: ['/api/settings/shipping-fee'],
+    queryFn: async () => {
+      const response = await apiRequest('GET', '/api/settings/shipping-fee');
+      return response as { value: string };
+    }
+  });
+  
+  // Update shipping fee when data changes
+  useEffect(() => {
+    if (shippingFeeData && shippingFeeData.value) {
+      console.log("Setting shipping fee to:", shippingFeeData.value);
+      setShippingFee(Number(shippingFeeData.value));
+    }
+  }, [shippingFeeData]);
+  
+  // Use BankAccount type for bank account data
+  
+  // Fetch default bank account
+  const { data: defaultBankAccount, isLoading: isBankAccountLoading } = useQuery<BankAccount>({
+    queryKey: ['/api/bank-accounts/default']
+  });
+
+  // Log bank account data when it changes
+  useEffect(() => {
+    if (defaultBankAccount) {
+      console.log('Bank account data loaded successfully:', defaultBankAccount);
+    }
+  }, [defaultBankAccount]);
+  
+  // Form definition
+  const form = useForm<CheckoutFormValues>({
+    resolver: zodResolver(checkoutFormSchema),
+    defaultValues: {
+      customerName: "",
+      customerEmail: "",
+      customerPhone: "",
+      customerAddress: "",
+      paymentMethod: "bank_transfer",
+    },
+    mode: "onChange", // Validate fields on change for better user feedback
+  });
+  
+  // Handle successful checkout
+  const handleCheckoutSuccess = (orderId: number) => {
+    clearCart();
+    toast({
+      title: "Захиалга амжилттай",
+      description: "Таны захиалгыг хүлээн авлаа. Захиалгын дэлгэрэнгүй хуудас руу чиглүүлж байна.",
+    });
+    
+    // Get form values for redirect
+    const customerEmail = form.getValues("customerEmail");
+    
+    // Redirect to order confirmation page with order ID and email
+    setLocation(`/order-confirmation?id=${orderId}&email=${encodeURIComponent(customerEmail)}`);
+  };
+  
+  // Enhanced form submission handler with better debugging
+  const onSubmit = async (data: CheckoutFormValues) => {
+    console.log("Form submission triggered with values:", data);
+    console.log("Form validation state:", form.formState);
+    
+    // Check for form validation errors
+    if (Object.keys(form.formState.errors).length > 0) {
+      console.error("Form has validation errors:", form.formState.errors);
+      toast({
+        title: "Форм алдаатай байна",
+        description: "Формын бүх талбаруудыг зөв бөглөнө үү.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (items.length === 0) {
+      toast({
+        title: "Сагс хоосон байна",
+        description: "Захиалга хийхийн тулд сагсандаа бүтээгдэхүүн нэмнэ үү.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setIsSubmitting(true);
+    
+    try {
+      console.log("Submitting order with data:", data);
+      console.log("Cart items:", items);
+      console.log("Total price:", totalPrice);
+      
+      // Calculate total with shipping fee
+      const orderTotalWithShipping = totalPrice + shippingFee;
+      
+      // Create a properly formatted order payload 
+      const orderPayload = {
+        orderData: {
+          customerName: data.customerName,
+          customerEmail: data.customerEmail,
+          customerPhone: data.customerPhone,
+          customerAddress: data.customerAddress,
+          paymentMethod: data.paymentMethod,
+          totalAmount: orderTotalWithShipping.toString(),
+        },
+        cartItems: items.map(item => ({
+          productId: item.productId,
+          quantity: item.quantity,
+          name: item.name,
+          price: item.price.toString(),
+          imageUrl: item.imageUrl
+        })),
+      };
+      
+      console.log("Sending order payload:", orderPayload);
+      
+      try {
+        const response = await apiRequest("POST", "/api/orders", orderPayload);
+        console.log("Order created successfully:", response);
+        
+        // Pass the order ID to the success handler
+        if (response && response.id) {
+          handleCheckoutSuccess(response.id);
+        } else {
+          console.error("Order created but no ID returned:", response);
+          toast({
+            title: "Захиалга үүссэн ч ID байхгүй байна",
+            description: "Нүүр хуудас руу буцаж байна. Имэйл шалгана уу.",
+            variant: "destructive",
+          });
+          setLocation("/");
+        }
+      } catch (apiError: any) {
+        console.error("API request error:", apiError);
+        const errorMessage = apiError.message || "Захиалга боловсруулах үед алдаа гарлаа";
+        toast({
+          title: "API Алдаа",
+          description: errorMessage,
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      console.error("Error submitting order:", error);
+      toast({
+        title: "Алдаа гарлаа",
+        description: error.message || "Захиалга боловсруулах үед алдаа гарлаа. Дахин оролдоно уу.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+  
+  // If cart is empty, redirect to home
+  if (items.length === 0) {
+    return (
+      <div className="min-h-screen">
+        <Navbar />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <div className="text-center py-10">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">Сагс хоосон байна</h2>
+            <p className="text-gray-500 mb-6">Захиалга хийхийн тулд сагсандаа бүтээгдэхүүн нэмнэ үү.</p>
+            <Button 
+              onClick={() => setLocation("/")}
+              className="bg-primary hover:bg-primary-dark text-white"
+            >
+              Бүтээгдэхүүн харах
+            </Button>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+  
+  return (
+    <div className="min-h-screen bg-background">
+      <Navbar />
+      
+      <section className="py-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl md:text-4xl font-bold gradient-text inline-block mb-3">Захиалга</h1>
+          <div className="w-20 h-1 gradient-red-blue mx-auto rounded-full"></div>
+        </div>
+          
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Order Form */}
+          <div className="gradient-card rounded-xl shadow-lg p-6 border border-gray-100"
+            style={{backdropFilter: "blur(8px)"}}>
+            <h2 className="text-xl font-bold mb-6 text-foreground">Захиалагчийн мэдээлэл</h2>
+              
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                  <FormField
+                    control={form.control}
+                    name="customerName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Нэр</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Овог, нэр" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <FormField
+                      control={form.control}
+                      name="customerEmail"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Имэйл</FormLabel>
+                          <FormControl>
+                            <Input placeholder="example@mail.com" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="customerPhone"
+                      render={({ field }) => {
+                        const formatPhoneNumber = (value: string) => {
+                          // Remove all non-digit characters
+                          const digits = value.replace(/\D/g, '');
+                          
+                          // Apply Korean phone number format (010-0000-0000)
+                          if (digits.length <= 3) {
+                            return digits;
+                          } else if (digits.length <= 7) {
+                            return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+                          } else {
+                            return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7, 11)}`;
+                          }
+                        };
+                        
+                        return (
+                          <FormItem>
+                            <FormLabel>Утасны дугаар</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="010-0000-0000" 
+                                {...field}
+                                value={field.value}
+                                onChange={(e) => {
+                                  const formatted = formatPhoneNumber(e.target.value);
+                                  field.onChange(formatted);
+                                }}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Солонгос утасны дугаар хэлбэр: 010-0000-0000
+                            </p>
+                          </FormItem>
+                        );
+                      }}
+                    />
+                  </div>
+                  
+                  <FormField
+                    control={form.control}
+                    name="customerAddress"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Хүргэлтийн хаяг</FormLabel>
+                        <FormControl>
+                          <Textarea 
+                            placeholder="Дүүрэг, хороо, байр, орц, тоот гэх мэт дэлгэрэнгүй хаягаа оруулна уу."
+                            className="resize-none"
+                            {...field} 
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="paymentMethod"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Төлбөрийн хэлбэр</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Төлбөрийн хэлбэр сонгоно уу" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="bank_transfer">Банк шилжүүлэг (무통장 입금)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <Button 
+                    type="submit"
+                    className="w-full gradient-red-blue hover:opacity-90 text-white font-medium py-6 transition-all duration-300 shadow-md hover:shadow-lg"
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></span>
+                        Боловсруулж байна...
+                      </>
+                    ) : (
+                      <>
+                        Захиалга хийх
+                        <span className="material-icons ml-2">shopping_bag</span>
+                      </>
+                    )}
+                  </Button>
+                </form>
+              </Form>
+            </div>
+            
+            {/* Order Summary */}
+            <div>
+              <div className="gradient-card rounded-xl shadow-lg p-6 mb-6 border border-gray-100">
+                <h2 className="text-xl font-bold mb-6 text-foreground">Захиалгын мэдээлэл</h2>
+                
+                <div className="space-y-4 mb-6">
+                  {items.map((item) => (
+                    <CartItemComponent key={item.productId} item={item} />
+                  ))}
+                </div>
+                
+                <div className="border-t border-gray-100 pt-4">
+                  <div className="flex justify-between mb-2">
+                    <span className="font-medium text-foreground">Дүн:</span>
+                    <span className="font-bold">{formatPrice(totalPrice)}</span>
+                  </div>
+                  <div className="flex justify-between mb-2">
+                    <span className="font-medium text-foreground">Хүргэлтийн төлбөр:</span>
+                    <span className="font-bold">
+                      {isLoadingShippingFee ? (
+                        <span className="h-4 w-16 bg-gray-200 animate-pulse rounded inline-block"></span>
+                      ) : (
+                        formatPrice(shippingFee)
+                      )}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-lg font-bold mt-4 pt-4 border-t border-gray-100">
+                    <span className="text-foreground">Нийт дүн:</span>
+                    <span className="gradient-text">{formatPrice(totalPrice + shippingFee)}</span>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="rounded-xl p-6 mb-6 shadow-md bg-gradient-to-r from-blue-500/10 to-blue-600/5 border border-blue-100">
+                <div className="flex items-start">
+                  <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center mr-4 shadow-sm">
+                    <span className="material-icons gradient-text text-xl">info</span>
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-secondary text-lg mb-2">Хүргэлтийн мэдээлэл</h3>
+                    <p className="text-foreground/90">
+                      Хүргэлт 24 цагийн дотор хийгдэх бөгөөд захиалга бүрдүүлэлтийн явцыг имэйл болон утсаар мэдэгдэнэ.
+                    </p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="rounded-xl p-6 shadow-md bg-gradient-to-r from-green-500/10 to-green-600/5 border border-green-100">
+                <div className="flex items-start">
+                  <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center mr-4 shadow-sm">
+                    <span className="material-icons gradient-text text-xl">account_balance</span>
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-secondary text-lg mb-2">Банк шилжүүлэг (무통장 입금)</h3>
+                    <p className="text-foreground/90 mb-4">
+                      Банк шилжүүлэг хийх бол дараах данс руу төлбөрөө шилжүүлнэ үү:
+                    </p>
+                    {isBankAccountLoading ? (
+                      <div className="bg-white/80 p-4 rounded-lg shadow-sm text-sm">
+                        <div className="h-4 w-24 bg-gray-200 animate-pulse rounded mb-3"></div>
+                        <div className="h-4 w-36 bg-gray-200 animate-pulse rounded mb-3"></div>
+                        <div className="h-4 w-32 bg-gray-200 animate-pulse rounded"></div>
+                      </div>
+                    ) : defaultBankAccount && typeof defaultBankAccount === 'object' ? (
+                      <div className="bg-white/80 p-4 rounded-lg shadow-sm">
+                        <p className="mb-2"><span className="font-medium text-secondary">Банк:</span> {(defaultBankAccount as any).bankName || 'Хаан Банк'}</p>
+                        <p className="mb-2"><span className="font-medium text-secondary">Дансны дугаар:</span> {(defaultBankAccount as any).accountNumber || '5001122334455'}</p>
+                        <p className="mb-2"><span className="font-medium text-secondary">Хүлээн авагч:</span> {(defaultBankAccount as any).accountHolder || 'Герийн Мах ХХК'}</p>
+                        <p><span className="font-medium text-secondary">Гүйлгээний утга:</span> [Захиалгын дугаар] </p>
+                      </div>
+                    ) : (
+                      <div className="bg-white/80 p-4 rounded-lg shadow-sm">
+                        <p className="text-amber-600">Банкны мэдээлэл олдсонгүй. Захиалгын баталгаажуулалтын имэйлээс дансны мэдээллийг шалгана уу.</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+      
+      <Footer />
+    </div>
+  );
+}

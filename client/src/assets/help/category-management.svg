@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="300" height="200" viewBox="0 0 300 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="300" height="200" rx="10" fill="#F9FAFB"/>
+  
+  <!-- Category Card Container -->
+  <rect x="25" y="25" width="250" height="150" rx="8" fill="white" stroke="#E5E7EB" stroke-width="2"/>
+  
+  <!-- Header -->
+  <rect x="25" y="25" width="250" height="35" rx="8 8 0 0" fill="#F3F4F6"/>
+  <text x="45" y="48" font-family="Arial" font-size="14" font-weight="bold" fill="#4B5563">Ангилал удирдлага</text>
+  
+  <!-- Category Cards -->
+  <!-- Category 1: Beef -->
+  <rect x="35" y="70" width="70" height="95" rx="6" fill="#EEF2FF"/>
+  <rect x="45" y="80" width="50" height="40" rx="4" fill="#C7D2FE"/>
+  <path d="M55 95C55 90 75 90 85 100" stroke="#6366F1" stroke-width="1.5" stroke-linecap="round"/> <!-- Stylized meat icon -->
+  <circle cx="70" cy="105" r="12" fill="#818CF8" fill-opacity="0.3"/>
+  <path d="M65 100L70 106L75 100" stroke="#6366F1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="70" y="130" font-family="Arial" font-size="10" text-anchor="middle" fill="#4B5563">Үхрийн мах</text>
+  <text x="70" y="145" font-family="Arial" font-size="8" text-anchor="middle" fill="#6B7280">beef</text>
+  
+  <!-- Category 2: Lamb -->
+  <rect x="115" y="70" width="70" height="95" rx="6" fill="#F3F4F6"/>
+  <rect x="125" y="80" width="50" height="40" rx="4" fill="#E5E7EB"/>
+  <path d="M135 95C135 90 155 90 165 100" stroke="#9CA3AF" stroke-width="1.5" stroke-linecap="round"/> <!-- Stylized meat icon -->
+  <circle cx="150" cy="105" r="12" fill="#9CA3AF" fill-opacity="0.3"/>
+  <path d="M145 100L150 106L155 100" stroke="#9CA3AF" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="150" y="130" font-family="Arial" font-size="10" text-anchor="middle" fill="#4B5563">Хонины мах</text>
+  <text x="150" y="145" font-family="Arial" font-size="8" text-anchor="middle" fill="#6B7280">lamb</text>
+  
+  <!-- Category 3: Add New -->
+  <rect x="195" y="70" width="70" height="95" rx="6" fill="#F3F4F6" stroke="#E5E7EB" stroke-width="2" stroke-dasharray="4 4"/>
+  <circle cx="230" cy="105" r="15" fill="#F3F4F6" stroke="#9CA3AF" stroke-width="1.5"/>
+  <path d="M230 95V115M220 105H240" stroke="#9CA3AF" stroke-width="1.5" stroke-linecap="round"/>
+  <text x="230" y="138" font-family="Arial" font-size="10" text-anchor="middle" fill="#6B7280">Шинэ ангилал</text>
+  
+  <!-- Drag Handle -->
+  <rect x="200" y="38" width="65" height="8" rx="4" fill="#EEF2FF"/>
+  <circle cx="208" cy="42" r="2" fill="#6366F1"/>
+  <circle cx="216" cy="42" r="2" fill="#6366F1"/>
+  <circle cx="224" cy="42" r="2" fill="#6366F1"/>
+  <path d="M235 42L245 37L235 32" stroke="#6366F1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- Spotlight/Selection effect -->
+  <rect x="35" y="70" width="70" height="95" rx="6" stroke="#6366F1" stroke-width="2" fill="none"/>
+  <circle cx="70" cy="105" r="30" fill="url(#paint0_radial)" fill-opacity="0.2"/>
+  
+  <defs>
+    <radialGradient id="paint0_radial" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(70 105) rotate(90) scale(30)">
+      <stop stop-color="#6366F1"/>
+      <stop offset="1" stop-color="#6366F1" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+</svg>

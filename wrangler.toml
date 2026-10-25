@@ -1,0 +1,13 @@
+name = "elbeg-meat"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+pages_build_output_dir = "dist/public"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "elbeg-db"
+database_id = "9314a1ba-863a-484f-b84f-1ffc4e017cce"
+
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "elbeg-storage"

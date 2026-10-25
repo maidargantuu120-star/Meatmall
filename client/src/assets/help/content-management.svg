@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="300" height="200" viewBox="0 0 300 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="300" height="200" rx="10" fill="#F9FAFB"/>
+  
+  <!-- Content Management Container -->
+  <rect x="25" y="25" width="250" height="150" rx="8" fill="white" stroke="#E5E7EB" stroke-width="2"/>
+  
+  <!-- Header -->
+  <rect x="25" y="25" width="250" height="35" rx="8 8 0 0" fill="#F3F4F6"/>
+  <text x="45" y="48" font-family="Arial" font-size="14" font-weight="bold" fill="#4B5563">Контент удирдлага</text>
+  
+  <!-- Left Panel: Content List -->
+  <rect x="25" y="60" width="80" height="115" fill="#FAFBFC"/>
+  <rect x="30" y="70" width="70" height="20" rx="4" fill="#EEF2FF"/>
+  <text x="38" y="84" font-family="Arial" font-size="10" fill="#6366F1">Нүүр баннер</text>
+  
+  <rect x="30" y="95" width="70" height="20" rx="4" fill="#F9FAFB"/>
+  <text x="38" y="109" font-family="Arial" font-size="10" fill="#6B7280">Бидний тухай</text>
+  
+  <rect x="30" y="120" width="70" height="20" rx="4" fill="#F9FAFB"/>
+  <text x="38" y="134" font-family="Arial" font-size="10" fill="#6B7280">Үйлчилгээ</text>
+  
+  <rect x="30" y="145" width="70" height="20" rx="4" fill="#F9FAFB"/>
+  <text x="38" y="159" font-family="Arial" font-size="10" fill="#6B7280">Холбоо барих</text>
+  
+  <!-- Divider -->
+  <line x1="105" y1="60" x2="105" y2="175" stroke="#E5E7EB" stroke-width="1"/>
+  
+  <!-- Right Panel: Content Editor -->
+  <rect x="115" y="70" width="150" height="25" rx="4" fill="#F9FAFB"/>
+  <text x="125" y="86" font-family="Arial" font-size="12" fill="#111827" font-weight="bold">Нүүр хуудасны гарчиг</text>
+  
+  <!-- Content Field -->
+  <rect x="115" y="100" width="150" height="65" rx="4" fill="#F9FAFB"/>
+  <text x="125" y="116" font-family="Arial" font-size="10" fill="#6B7280">Шинэ, халуун мах</text>
+  <text x="125" y="132" font-family="Arial" font-size="10" fill="#6B7280">Монголын өнцгийн махны</text>
+  <text x="125" y="148" font-family="Arial" font-size="10" fill="#6B7280">дэлгүүрээс</text>
+  
+  <!-- Button Group -->
+  <rect x="195" y="170" width="70" height="25" rx="4" fill="#6366F1"/>
+  <text x="215" y="186" font-family="Arial" font-size="10" fill="white" text-anchor="middle">Хадгалах</text>
+  
+  <rect x="115" y="170" width="70" height="25" rx="4" fill="#F3F4F6" stroke="#D1D5DB" stroke-width="1"/>
+  <text x="135" y="186" font-family="Arial" font-size="10" fill="#6B7280" text-anchor="middle">Цуцлах</text>
+  
+  <!-- Insert Illustration -->
+  <rect x="188" y="40" width="75" height="15" rx="4" fill="#EEF2FF"/>
+  <circle cx="195" cy="47" r="3" fill="#6366F1"/>
+  <path d="M193 47H197" stroke="#6366F1" stroke-width="1" stroke-linecap="round"/>
+  <path d="M195 45V49" stroke="#6366F1" stroke-width="1" stroke-linecap="round"/>
+  <text x="205" y="51" font-family="Arial" font-size="8" fill="#6366F1">Зураг оруулах</text>
+  <path d="M255 47L258 44L255 41" stroke="#6366F1" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- Spotlight effect -->
+  <circle cx="150" cy="100" r="60" fill="url(#paint0_radial)" fill-opacity="0.15"/>
+  
+  <defs>
+    <radialGradient id="paint0_radial" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(150 100) rotate(90) scale(60)">
+      <stop stop-color="#6366F1"/>
+      <stop offset="1" stop-color="#6366F1" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+</svg>

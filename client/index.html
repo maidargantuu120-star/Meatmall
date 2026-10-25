@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="mn">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+  <title>Meat Mall</title>
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+
+  <!-- Installable web app (Android "Install app" / iOS "Add to Home Screen") -->
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#e4002b">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Meat Mall">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+
+  <!-- Preconnect to Google Fonts for faster loading -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+  <!-- Async load Google Fonts (non-render-blocking) -->
+  <!-- Pretendard: body text (Latin, digits, Korean). It has no Cyrillic, so Mongolian falls back to Inter -->
+  <link rel="preload" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
+    as="style" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+  </noscript>
+  <!-- Inter: Cyrillic fallback for body. Montserrat: display (full Mongolian Cyrillic). Alfa Slab One: logo -->
+  <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:ital,wght@0,600;0,700;0,800;0,900;1,900&family=Alfa+Slab+One&display=swap"
+    as="style" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:ital,wght@0,600;0,700;0,800;0,900;1,900&family=Alfa+Slab+One&display=swap">
+  </noscript>
+
+  <!-- Material Icons - loaded async -->
+  <link rel="preload" href="https://fonts.googleapis.com/icon?family=Material+Icons&display=swap" as="style"
+    onload="this.onload=null;this.rel='stylesheet'">
+  <noscript>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons&display=swap">
+  </noscript>
+
+  <!-- SEO Meta Tags -->
+  <meta name="description"
+    content="Meat Mall - Монголын хамгийн чанартай, шинэхэн үхэр, хонь, ямааны махыг танд хүргэж байна. Онлайнаар захиалж, гэртээ хүлээн авна уу." />
+  <meta name="keywords"
+    content="мах, үхрийн мах, хонины мах, ямааны мах, шинэхэн мах, Монгол мах, онлайн мах дэлгүүр, мах захиалга" />
+  <meta name="author" content="Meat Mall" />
+  <meta name="robots" content="index, follow" />
+
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Meat Mall - Монголын шинэхэн махны онлайн дэлгүүр" />
+  <meta property="og:description"
+    content="Монголын хамгийн чанартай, шинэхэн үхэр, хонь, ямааны махыг танд хүргэж байна. Онлайнаар захиалж, гэртээ хүлээн авна уу." />
+  <meta property="og:site_name" content="Meat Mall" />
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Meat Mall - Монголын шинэхэн махны онлайн дэлгүүр" />
+  <meta name="twitter:description"
+    content="Монголын хамгийн чанартай, шинэхэн үхэр, хонь, ямааны махыг танд хүргэж байна." />
+
+  <meta name="google-site-verification" content="Q9LAUpLtHU8vWQ-JgLodTcQ8jsTUbEO73f-8CpsLz84" />
+</head>
+
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/main.tsx"></script>
+  <!-- This is a replit script which adds a banner on the top of the page when opened in development mode outside the replit environment -->
+  <!-- Replit script removed for performance -->
+</body>
+
+</html>

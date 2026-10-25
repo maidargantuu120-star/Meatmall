@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Meat Mall">
+  <!--
+    Meat Mall mark (favicon / app icon / avatar). Steak from the primary logo on a
+    brand-red tile. No text, so it renders without web fonts.
+    Site copy: client/public/favicon.svg
+  -->
+  <defs>
+    <clipPath id="mm-mark-face">
+      <path d="M112 108 C116 78 170 62 224 72 C262 80 272 106 258 132 C246 154 204 160 162 157 C124 154 108 134 112 108 Z" />
+    </clipPath>
+  </defs>
+  <rect width="128" height="128" rx="28" fill="#e4002b" />
+  <g transform="translate(64 60) scale(0.62) translate(-187 -118)" stroke-linejoin="round" stroke-linecap="round">
+    <path transform="translate(0 16)" d="M112 108 C116 78 170 62 224 72 C262 80 272 106 258 132 C246 154 204 160 162 157 C124 154 108 134 112 108 Z" fill="#8f0016" stroke="#141414" stroke-width="9" />
+    <path d="M112 108 C116 78 170 62 224 72 C262 80 272 106 258 132 C246 154 204 160 162 157 C124 154 108 134 112 108 Z" fill="#ffffff" stroke="#141414" stroke-width="9" />
+    <g clip-path="url(#mm-mark-face)" stroke="#141414" stroke-width="8">
+      <path d="M168 74 L150 150 M194 70 L176 156 M220 74 L202 156 M246 86 L230 150" />
+    </g>
+  </g>
+</svg>

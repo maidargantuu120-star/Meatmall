@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 380" role="img" aria-label="Meat Mall">
+  <!--
+    Meat Mall primary logo (badge). Palette: ink #141414, brand #e4002b,
+    brand-deep #8f0016, white. Type: Alfa Slab One (SIL OFL).
+    Site copy of this artwork: client/src/components/brand-logo.tsx
+  -->
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Alfa+Slab+One&amp;display=swap');
+    .slab { font-family: 'Alfa Slab One', 'Rockwell Extra Bold', 'Roboto Slab', Georgia, serif; }
+  </style>
+  <defs>
+    <!-- White sticker outline around the whole mark -->
+    <filter id="mm-sticker" x="-10%" y="-10%" width="120%" height="120%">
+      <feMorphology in="SourceAlpha" operator="dilate" radius="7" result="grow" />
+      <feFlood flood-color="#ffffff" />
+      <feComposite in2="grow" operator="in" result="outline" />
+      <feMerge>
+        <feMergeNode in="outline" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+    <clipPath id="mm-steak-face">
+      <path d="M112 108 C116 78 170 62 224 72 C262 80 272 106 258 132 C246 154 204 160 162 157 C124 154 108 134 112 108 Z" />
+    </clipPath>
+  </defs>
+
+  <g filter="url(#mm-sticker)" stroke-linejoin="round" stroke-linecap="round">
+    <!-- Badge -->
+    <path d="M100 128 H380 L420 178 V246 L240 350 L60 246 V178 Z" fill="#141414" stroke="#141414" stroke-width="12" />
+    <path d="M110 142 H370 L404 184 V238 L240 332 L76 238 V184 Z" fill="#ffffff" />
+
+    <!-- Steam -->
+    <path d="M150 52 C142 42 158 34 150 22 M176 48 C168 38 184 30 176 18" fill="none" stroke="#141414" stroke-width="6" />
+
+    <!-- Steak: side, face, grill marks, highlight -->
+    <path transform="translate(0 16)" d="M112 108 C116 78 170 62 224 72 C262 80 272 106 258 132 C246 154 204 160 162 157 C124 154 108 134 112 108 Z" fill="#8f0016" stroke="#141414" stroke-width="7" />
+    <path d="M112 108 C116 78 170 62 224 72 C262 80 272 106 258 132 C246 154 204 160 162 157 C124 154 108 134 112 108 Z" fill="#e4002b" stroke="#141414" stroke-width="7" />
+    <g clip-path="url(#mm-steak-face)" stroke="#8f0016" stroke-width="8">
+      <path d="M168 74 L150 150 M194 70 L176 156 M220 74 L202 156 M246 86 L230 150" />
+    </g>
+    <path d="M128 104 C132 90 148 84 162 84" fill="none" stroke="#ffffff" stroke-opacity="0.55" stroke-width="6" />
+
+    <!-- Fork -->
+    <path d="M298 128 L276 196" stroke="#141414" stroke-width="16" />
+    <path d="M298 128 L276 196" stroke="#d9d9d9" stroke-width="8" />
+    <path d="M287 110 H313 L309 132 H291 Z" fill="#d9d9d9" stroke="#141414" stroke-width="5" />
+
+    <!-- Sausage: outline, body, highlight, tied ends -->
+    <path d="M388 66 L406 56 L400 84 Z M248 136 L232 152 L256 154 Z" fill="#141414" stroke="#141414" stroke-width="4" />
+    <path d="M262 120 Q300 64 366 74" fill="none" stroke="#141414" stroke-width="54" />
+    <path d="M262 120 Q300 64 366 74" fill="none" stroke="#e4002b" stroke-width="40" />
+    <path d="M280 102 Q304 76 338 72" fill="none" stroke="#ff8a98" stroke-width="7" />
+
+    <!-- Ribbon: folds, band, name -->
+    <path d="M44 266 H74 L74 288 Z M436 266 H406 L406 288 Z" fill="#8f0016" stroke="#141414" stroke-width="6" />
+    <path d="M30 182 H450 L436 224 L450 266 H30 L44 224 Z" fill="#e4002b" stroke="#141414" stroke-width="8" />
+    <text class="slab" x="243" y="247" text-anchor="middle" font-size="60" textLength="360" lengthAdjust="spacingAndGlyphs" fill="#8f0016" stroke="none">Meat Mall</text>
+    <text class="slab" x="240" y="244" text-anchor="middle" font-size="60" textLength="360" lengthAdjust="spacingAndGlyphs" fill="#ffffff" stroke="none">Meat Mall</text>
+
+    <!-- Year -->
+    <text class="slab" x="240" y="296" text-anchor="middle" font-size="22" textLength="118" lengthAdjust="spacingAndGlyphs" fill="#141414" stroke="none">• 2014 •</text>
+  </g>
+</svg>

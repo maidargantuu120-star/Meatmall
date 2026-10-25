@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-label="Meat Mall">
+  <!--
+    Android notification badge (status bar). Android uses only the alpha channel, so this is a
+    white steak silhouette with see-through grill marks on a transparent background.
+    Rendered to client/public/icons/badge-96.png.
+  -->
+  <defs>
+    <mask id="mm-badge-grill">
+      <rect width="96" height="96" fill="#fff" />
+      <g transform="translate(48 50) scale(0.42) translate(-187 -114)" stroke="#000" stroke-width="11" stroke-linecap="round">
+        <path d="M168 74 L150 150 M194 70 L176 156 M220 74 L202 156 M246 86 L230 150" />
+      </g>
+    </mask>
+  </defs>
+  <g mask="url(#mm-badge-grill)">
+    <path transform="translate(48 50) scale(0.42) translate(-187 -114)" d="M112 108 C116 78 170 62 224 72 C262 80 272 106 258 132 C246 154 204 160 162 157 C124 154 108 134 112 108 Z" fill="#fff" />
+  </g>
+</svg>

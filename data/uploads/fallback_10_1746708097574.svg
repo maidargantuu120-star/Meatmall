@@ -1,0 +1,5 @@
+<svg width="800" height="600" xmlns="http://www.w3.org/2000/svg">
+            <rect width="800" height="600" fill="#FF6B6B" />
+            <text x="400" y="300" font-family="Arial, sans-serif" font-size="36" fill="white" text-anchor="middle">Үхрийн сээрний цул</text>
+            <text x="400" y="350" font-family="Arial, sans-serif" font-size="24" fill="white" text-anchor="middle">Үхрийн мах</text>
+          </svg>
