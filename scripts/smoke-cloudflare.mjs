@@ -44,6 +44,7 @@ const payload = { customerName: 'Local Test', customerPhone: '000-0000-0000', cu
 const order = await request('/api/orders', payload);
 assert.equal(order.response.status, 201, JSON.stringify(order.data));
 assert.equal(order.data.totalAmount, 24750);
+assert.ok(Math.abs(Date.now() - Date.parse(order.data.createdAt)) < 60000, 'Order date must use the current date');
 const updated = await request(`/api/products/${product.data.id}`, undefined, 'GET');
 assert.equal(updated.data.stock, 3.5);
 payload.items[0].quantity = 100;

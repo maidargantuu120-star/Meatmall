@@ -143,7 +143,7 @@ app.post('/admin/login', async (c) => {
                 const hashedPassword = await hashPassword(envAdminPassword);
                 await c.env.DB.prepare(
                     "INSERT INTO users (username, email, password, is_admin, name, created_at) VALUES (?, ?, ?, 1, 'Admin', ?)"
-                ).bind(username, 'admin@meatmall.local', hashedPassword, Math.floor(Date.now() / 1000)).run();
+                ).bind(username, 'admin@meatmall.local', hashedPassword, Date.now()).run();
                 user = await storage.getUserByUsername(username);
                 if (!user) {
                     return c.json({ success: false, message: "Could not create admin user" }, 500);
@@ -535,7 +535,7 @@ app.get('/setup-admin', async (c) => {
             // Create new admin user
             result = await c.env.DB.prepare(
                 "INSERT INTO users (username, email, password, is_admin, name, created_at) VALUES (?, ?, ?, 1, 'Admin', ?)"
-            ).bind(username, email, hashedPassword, new Date().toISOString()).run();
+            ).bind(username, email, hashedPassword, Date.now()).run();
         }
 
         return c.json({

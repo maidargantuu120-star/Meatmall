@@ -6,7 +6,8 @@ import { z } from "zod";
 // Helper for boolean
 const boolean = (name: string) => integer(name, { mode: "boolean" });
 // Helper for timestamp
-const timestamp = (name: string) => integer(name, { mode: "timestamp" });
+// SQLite defaultNow() stores milliseconds; read/write Dates using the same unit.
+const timestamp = (name: string) => integer(name, { mode: "timestamp_ms" });
 
 // Products table with multilingual support
 export const products = sqliteTable("products", {
