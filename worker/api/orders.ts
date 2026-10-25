@@ -4,6 +4,8 @@ import { requireAuth, requireAdmin } from '../middleware';
 import { UserWithNullablePhone } from '@shared/schema';
 import { D1Storage, IStorage } from '../storage';
 import { notifyAdmins, notifyUser, orderNo, STATUS_NOTICES, won } from '../push';
+import { deliverOrderEmail, emailConfigured, renderOrderEmail } from '../email';
+import type { OrderEmailReceipt } from '../../shared/order-email';
 
 type Env = {
     Bindings: Bindings;
@@ -14,6 +16,32 @@ type Env = {
 };
 
 const app = new Hono<Env>();
+
+app.get('/orders/:id/email', requireAdmin, async (c) => {
+    c.header('Cache-Control', 'no-store');
+    await c.env.DB.prepare("UPDATE order_emails SET status='uncertain', last_error='Delivery interrupted; check Brevo before retry' WHERE order_id=? AND status='sending' AND locked_until < ?")
+        .bind(Number(c.req.param('id')), Date.now()).run();
+    const row = await c.env.DB.prepare('SELECT status, attempts, provider_message_id, last_error, updated_at, locked_until FROM order_emails WHERE order_id=?')
+        .bind(Number(c.req.param('id'))).first();
+    return c.json({ configured: emailConfigured(c.env), delivery: row });
+});
+
+app.get('/orders/:id/email-preview', requireAdmin, async (c) => {
+    c.header('Cache-Control', 'no-store');
+    const row = await c.env.DB.prepare('SELECT payload FROM order_emails WHERE order_id=?')
+        .bind(Number(c.req.param('id'))).first<{ payload: string }>();
+    if (!row) return c.json({ message: 'Receipt unavailable' }, 404);
+    return c.html(renderOrderEmail(Number(c.req.param('id')), JSON.parse(row.payload), c.env.BASE_URL || new URL(c.req.url).origin).html);
+});
+
+app.post('/orders/:id/email/retry', requireAdmin, async (c) => {
+    if (!emailConfigured(c.env)) return c.json({ message: 'Email provider is not configured' }, 503);
+    const id = Number(c.req.param('id'));
+    const row = await c.env.DB.prepare('SELECT status FROM order_emails WHERE order_id=?').bind(id).first<{ status: string }>();
+    if (!row) return c.json({ message: 'Receipt unavailable' }, 404);
+    if (!['pending', 'failed'].includes(row.status)) return c.json({ message: 'Already sent or delivery requires provider review' }, 409);
+    return c.json(await deliverOrderEmail(c.env, id));
+});
 
 // Orders
 app.get('/orders/pending-count', requireAdmin, async (c) => {
@@ -101,6 +129,7 @@ app.post('/orders', async (c) => {
             quantities.set(productId, (quantities.get(productId) || 0) + quantity);
         }
         const validatedItems = [];
+        const receiptItems: OrderEmailReceipt['items'] = [];
         let subtotal = 0;
         for (const [productId, quantity] of Array.from(quantities)) {
             const product = await storage.getProduct(productId);
@@ -108,6 +137,7 @@ app.post('/orders', async (c) => {
                 return c.json({ message: 'Product unavailable or invalid quantity' }, 400);
             }
             validatedItems.push({ productId, quantity, price: product.price, orderId: 0 });
+            receiptItems.push({ name: product.name, quantity, price: product.price, amount: product.price * quantity });
             subtotal += product.price * quantity;
         }
         const shipping = await storage.getSiteSettingByKey('shipping_fee');
@@ -119,15 +149,35 @@ app.post('/orders', async (c) => {
                 return c.json({ message: 'Customer name, phone and address are required' }, 400);
             }
         }
+        const customerEmail = String(orderData.customerEmail || '').trim();
+        if (customerEmail && !/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(customerEmail)) {
+            return c.json({ message: 'Invalid customer email' }, 400);
+        }
+        const selectedId = orderData.selectedBankAccount;
+        const account = selectedId
+            ? await storage.getBankAccount(Number(selectedId))
+            : await storage.getDefaultBankAccount();
+        if (selectedId && (!account || !account.isActive)) {
+            return c.json({ message: 'Selected bank account is unavailable' }, 400);
+        }
+        const receipt: OrderEmailReceipt = {
+            customerName: orderData.customerName, customerEmail,
+            customerPhone: orderData.customerPhone, customerAddress: orderData.customerAddress,
+            transferAccountHolder: String(orderData.transferAccountHolder || orderData.customerName),
+            placedAt: new Date().toISOString(), items: receiptItems, subtotal, shippingFee,
+            totalAmount: Math.round((subtotal + shippingFee) * 100) / 100,
+            paymentAccount: account?.isActive ? { bankName: account.bankName, accountNumber: account.accountNumber, accountHolder: account.accountHolder } : null,
+        };
         const order = await storage.createOrder({
             ...orderData,
             totalAmount: Math.round((subtotal + shippingFee) * 100) / 100,
-            customerEmail: orderData.customerEmail || '',
+            customerEmail,
             userId: user?.id || null // Allow guest checkout if userId provided or null
-        }, validatedItems);
+        }, validatedItems, receipt);
 
         // Push after the response is sent so checkout never waits on push services
         c.executionCtx.waitUntil(Promise.all([
+            deliverOrderEmail(c.env, order.id).catch(() => console.error('Order email delivery failed', order.id)),
             notifyAdmins(c.env, {
                 title: `Шинэ захиалга ${orderNo(order.id)} 🔔`,
                 body: `${order.customerName} · ${won(order.totalAmount)}`,

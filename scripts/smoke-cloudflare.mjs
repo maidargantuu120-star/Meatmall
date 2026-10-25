@@ -24,6 +24,8 @@ const login = await request('/api/admin/login', { username: secrets.ADMIN_USERNA
 assert.equal(login.response.status, 200, JSON.stringify(login.data));
 token = login.data.token;
 assert.ok(token);
+const bank = await request('/api/bank-accounts', { bankName: 'LOCAL TEST BANK', accountNumber: 'LOCAL-ONLY-123', accountHolder: 'Local Meatmall', isDefault: true, isActive: true });
+assert.equal(bank.response.status, 201);
 const bytes = await sharp({ create: { width: 240, height: 160, channels: 3, background: '#e4002b' } }).webp().toBuffer();
 const form = new FormData();
 form.append('file', new File([bytes], 'smoke.webp', { type: 'image/webp' }));
@@ -40,11 +42,22 @@ assert.equal((await request('/api/site-settings', { key: 'test_inline', value: '
 const product = await request('/api/products', { name: 'Local smoke test', category: 'test', price: 12500, stock: 5, imageUrl: media.data.url, description: '' });
 assert.equal(product.response.status, 201, JSON.stringify(product.data));
 const payload = { customerName: 'Local Test', customerPhone: '000-0000-0000', customerAddress: 'Local test only', customerEmail: 'test@example.invalid', totalAmount: 1,
+  selectedBankAccount: bank.data.id, transferAccountHolder: 'Local sender',
   items: [{ productId: product.data.id, quantity: 1.5, price: 1 }] };
 const order = await request('/api/orders', payload);
 assert.equal(order.response.status, 201, JSON.stringify(order.data));
 assert.equal(order.data.totalAmount, 24750);
 assert.ok(Math.abs(Date.now() - Date.parse(order.data.createdAt)) < 60000, 'Order date must use the current date');
+const email = await request(`/api/orders/${order.data.id}/email`, undefined, 'GET');
+assert.equal(email.data.configured, false);
+assert.equal(email.data.delivery.status, 'pending');
+assert.equal((await request(`/api/orders/${order.data.id}/email/retry`, {})).response.status, 503);
+await request(`/api/bank-accounts/${bank.data.id}`, { accountNumber: 'CHANGED-AFTER-ORDER' }, 'PATCH');
+const preview = await fetch(base + `/api/orders/${order.data.id}/email-preview`, { headers: { Authorization: `Bearer ${token}` } });
+const html = await preview.text();
+assert.ok(html.includes('LOCAL-ONLY-123'), 'Receipt must keep the originally selected account');
+assert.ok(!html.includes('CHANGED-AFTER-ORDER'));
+assert.ok(html.includes('Local sender'));
 const updated = await request(`/api/products/${product.data.id}`, undefined, 'GET');
 assert.equal(updated.data.stock, 3.5);
 payload.items[0].quantity = 100;

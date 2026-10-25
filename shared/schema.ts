@@ -54,6 +54,17 @@ export const insertOrderSchema = createInsertSchema(orders).omit({
 });
 
 // Order items table
+export const orderEmails = sqliteTable('order_emails', {
+  orderId: integer('order_id').primaryKey(),
+  payload: text('payload').notNull(),
+  status: text('status').notNull().default('pending'),
+  attempts: integer('attempts').notNull().default(0),
+  lockedUntil: integer('locked_until').notNull().default(0),
+  providerMessageId: text('provider_message_id'),
+  lastError: text('last_error'),
+  updatedAt: integer('updated_at').notNull(),
+});
+
 export const orderItems = sqliteTable("order_items", {
   id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
   orderId: integer("order_id").notNull(),

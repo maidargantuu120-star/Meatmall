@@ -13,6 +13,12 @@ import { ErrorBoundary } from "./components/ui/error-boundary";
 // Service worker makes the web site installable. Skipped in the Capacitor app build
 // (VITE_API_BASE_URL is only set there), which is already a native app.
 if ("serviceWorker" in navigator && !import.meta.env.VITE_API_BASE_URL) {
+  navigator.serviceWorker.addEventListener('message', (event) => {
+    if (event.data?.type !== 'MEATMALL_ORDER_UPDATE') return;
+    // A received push immediately refreshes the shared new-order query (and MP3 watcher).
+    void queryClient.invalidateQueries({ queryKey: ['/api/orders/pending-count'], exact: true });
+    void queryClient.invalidateQueries({ queryKey: ['/api/orders'], exact: true });
+  });
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("/sw.js").catch((error) => {
       console.error("Service worker registration failed:", error);

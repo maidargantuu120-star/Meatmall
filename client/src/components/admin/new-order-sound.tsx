@@ -139,6 +139,10 @@ export function OrderSoundToggle({ className }: { className?: string }) {
   const { enabled, blocked } = useSoundState();
 
   const toggle = () => {
+    if (enabled && blocked) {
+      playOrderSound();
+      return;
+    }
     const next = !enabled;
     setState({ enabled: next });
     try {
