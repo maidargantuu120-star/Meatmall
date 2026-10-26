@@ -106,16 +106,10 @@ function DeliveryRider({ state }: { state: RiderState }) {
   );
 }
 
-export function OrderTracker({
-  status,
-  createdAt,
-}: {
-  status: string;
-  createdAt?: string | Date | null;
-}) {
-  const { t, language } = useLanguage();
+// Estimated delivery day for a pending/processing order, counted from when it was placed.
+// Shared by the tracker header and the My Page order card header.
+export function useDeliveryEta(status: string, createdAt?: string | Date | null): Date | null {
   const tracked = status in PROGRESS ? (status as TrackedStatus) : null;
-  const progress = tracked ? PROGRESS[tracked] : null;
 
   // Same queries (and cache) as the home page delivery line
   const { data: deliverySettings } = useQuery<DeliverySettings>({
@@ -131,14 +125,30 @@ export function OrderTracker({
     enabled: tracked === "pending" || tracked === "processing",
   });
 
-  // Estimated delivery day, counted from when the order was placed
-  const eta = useMemo(() => {
+  return useMemo(() => {
     if (!deliverySettings || !createdAt) return null;
     if (tracked !== "pending" && tracked !== "processing") return null;
     const placed = normalizeDate(createdAt);
     if (Number.isNaN(placed.getTime())) return null;
     return calculateDeliveryDate(deliverySettings, nonDeliveryDays, placed);
   }, [deliverySettings, nonDeliveryDays, createdAt, tracked]);
+}
+
+// `bare` renders only the bar (and the cancelled note): the order card shows the
+// status title, sub line and delivery day in its own header.
+export function OrderTracker({
+  status,
+  createdAt,
+  bare = false,
+}: {
+  status: string;
+  createdAt?: string | Date | null;
+  bare?: boolean;
+}) {
+  const { t, language } = useLanguage();
+  const tracked = status in PROGRESS ? (status as TrackedStatus) : null;
+  const progress = tracked ? PROGRESS[tracked] : null;
+  const eta = useDeliveryEta(status, createdAt);
 
   // Fill from 0 on mount so the rider "drives" to the current position
   const [fill, setFill] = useState(0);
@@ -150,6 +160,13 @@ export function OrderTracker({
 
   if (status === "cancelled") {
     const copy = t.orderTracker.cancelled;
+    if (bare) {
+      return (
+        <p data-testid="order-tracker" className="rounded-xl bg-surface p-3.5 text-sm text-ink/60">
+          {copy.note}
+        </p>
+      );
+    }
     return (
       <div data-testid="order-tracker">
         <div className="flex items-start justify-between gap-3">
@@ -174,25 +191,27 @@ export function OrderTracker({
 
   return (
     <div data-testid="order-tracker">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h3 className="font-display text-lg font-extrabold leading-tight text-ink sm:text-xl">
-            {copy.title}
-          </h3>
-          <p className="mt-1 text-sm text-ink/60">{copy.sub}</p>
-          {eta && (
-            <span className="mt-2 inline-block rounded-full bg-surface px-2.5 py-1 text-xs font-semibold text-ink">
-              {t.orderTracker.eta} · {formatDeliveryDate(eta, language)}
-            </span>
-          )}
+      {!bare && (
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h3 className="font-display text-lg font-extrabold leading-tight text-ink sm:text-xl">
+              {copy.title}
+            </h3>
+            <p className="mt-1 text-sm text-ink/60">{copy.sub}</p>
+            {eta && (
+              <span className="mt-2 inline-block rounded-full bg-surface px-2.5 py-1 text-xs font-semibold text-ink">
+                {t.orderTracker.eta} · {formatDeliveryDate(eta, language)}
+              </span>
+            )}
+          </div>
+          <span className="flex h-12 min-w-14 flex-shrink-0 items-center justify-center whitespace-nowrap rounded-2xl bg-brand/10 px-2.5 font-display text-[11px] sm:h-14 sm:px-3 sm:text-xs font-extrabold text-brand">
+            {copy.chip}
+          </span>
         </div>
-        <span className="flex h-12 min-w-14 flex-shrink-0 items-center justify-center whitespace-nowrap rounded-2xl bg-brand/10 px-2.5 font-display text-[11px] sm:h-14 sm:px-3 sm:text-xs font-extrabold text-brand">
-          {copy.chip}
-        </span>
-      </div>
+      )}
 
       {/* Bar with stops; the rider rides on top of it */}
-      <div className="pt-16">
+      <div className={bare ? "pt-14" : "pt-16"}>
         <div className="relative h-2.5 rounded-full bg-ink/10">
           <div
             className="absolute inset-y-0 left-0 overflow-hidden rounded-full bg-brand transition-[width] duration-[1400ms] ease-out motion-reduce:transition-none"

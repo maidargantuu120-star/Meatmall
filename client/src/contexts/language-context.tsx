@@ -29,6 +29,7 @@ export interface Translations {
   home: string;
   products: string;
   contact: string;
+  about: string;
   cart: string;
   profile: string;
   logout: string;
@@ -113,6 +114,8 @@ export interface Translations {
   selectBank: string;
   defaultAccount: string;
   copyAccountNumber: string;
+  copy: string;
+  accountShort: string;
   bankInfoNotFound: string;
   transferSenderName: string;
   transferSenderNamePlaceholder: string;
@@ -149,9 +152,11 @@ export interface Translations {
   paymentStatus: string;
   orderNumber: string;
   totalItems: string;
+  productUnit: string;
   orderDate: string;
   showMore: string;
   showDetails: string;
+  orderDetails: string;
   collapse: string;
 
   // 주문 상태
@@ -165,6 +170,7 @@ export interface Translations {
   push: {
     title: string;
     desc: string;
+    short: string;
     on: string;
     turnOn: string;
     turnOff: string;
@@ -277,6 +283,7 @@ const translations: Record<Language, Translations> = {
     home: "Нүүр",
     products: "Бүтээгдэхүүн",
     contact: "Холбоо барих",
+    about: "Бидний тухай",
     cart: "Сагс",
     profile: "Миний мэдээлэл",
     logout: "Гарах",
@@ -361,6 +368,8 @@ const translations: Record<Language, Translations> = {
     selectBank: "Банк сонгоно уу",
     defaultAccount: "Үндсэн данс",
     copyAccountNumber: "Дансны дугаар хуулах",
+    copy: "Хуулах",
+    accountShort: "Данс",
     bankInfoNotFound:
       "Банкны мэдээлэл олдсонгүй. Имэйлээс дансны мэдээллийг шалгана уу.",
     transferSenderName: "Шилжүүлсэн хүний нэр",
@@ -399,9 +408,11 @@ const translations: Record<Language, Translations> = {
     paymentStatus: "Төлбөрийн төлөв",
     orderNumber: "Захиалгын дугаар",
     totalItems: "Нийт",
+    productUnit: "бүтээгдэхүүн",
     orderDate: "Огноо",
     showMore: "илүү үзэх...",
     showDetails: "Дэлгэрэнгүй",
+    orderDetails: "Захиалгын дэлгэрэнгүй",
     collapse: "Хураангуйлах",
 
     // 주문 상태
@@ -414,6 +425,7 @@ const translations: Record<Language, Translations> = {
     push: {
       title: "Захиалгын мэдэгдэл",
       desc: "Төлбөр баталгаажих, хүргэгдэх үед утсанд тань мэдэгдэл ирнэ.",
+      short: "Төлбөр, хүргэлтийн мэдэгдэл авах",
       on: "Асаалттай",
       turnOn: "Мэдэгдэл асаах",
       turnOff: "Унтраах",
@@ -430,17 +442,17 @@ const translations: Record<Language, Translations> = {
     orderTracker: {
       pending: {
         title: "Төлбөр хүлээгдэж байна",
-        sub: "Дансаар шилжүүлсний дараа захиалга баталгаажна",
+        sub: "Шилжүүлэг хийсний дараа баталгаажна",
         chip: "Хүлээгдэж",
       },
       processing: {
         title: "Захиалгыг тань бэлтгэж байна",
-        sub: "Төлбөр баталгаажлаа. Шинэхэн махыг тань савлаж хүргэнэ.",
+        sub: "Төлбөр баталгаажлаа. Савлаж хүргэнэ.",
         chip: "Хүргэлтэд",
       },
       completed: {
         title: "Хүргэгдлээ!",
-        sub: "Шинэхэн махаа хөргөгчиндөө хадгалаарай. Дахин захиалаарай!",
+        sub: "Махаа хөргөгчинд хадгалаарай!",
         chip: "Хүргэгдсэн",
       },
       cancelled: {
@@ -541,6 +553,7 @@ const translations: Record<Language, Translations> = {
     home: "Главная",
     products: "Продукты",
     contact: "Контакты",
+    about: "О нас",
     cart: "Корзина",
     profile: "Мой профиль",
     logout: "Выйти",
@@ -626,6 +639,8 @@ const translations: Record<Language, Translations> = {
     selectBank: "Выберите банк",
     defaultAccount: "Основной счет",
     copyAccountNumber: "Скопировать номер счета",
+    copy: "Копировать",
+    accountShort: "Счёт",
     bankInfoNotFound:
       "Информация о банке не найдена. Проверьте данные счета в email.",
     transferSenderName: "Имя отправителя",
@@ -664,9 +679,11 @@ const translations: Record<Language, Translations> = {
     paymentStatus: "Статус оплаты",
     orderNumber: "Номер заказа",
     totalItems: "Всего",
+    productUnit: "поз.",
     orderDate: "Дата",
     showMore: "больше...",
     showDetails: "Подробнее",
+    orderDetails: "Детали заказа",
     collapse: "Свернуть",
 
     // 주문 상태
@@ -679,6 +696,7 @@ const translations: Record<Language, Translations> = {
     push: {
       title: "Уведомления о заказе",
       desc: "Сообщим на телефон, когда оплата подтверждена и заказ доставлен.",
+      short: "Уведомления об оплате и доставке",
       on: "Включены",
       turnOn: "Включить уведомления",
       turnOff: "Выключить",
@@ -807,6 +825,7 @@ const translations: Record<Language, Translations> = {
     home: "Home",
     products: "Products",
     contact: "Contact",
+    about: "About us",
     cart: "Cart",
     profile: "My Profile",
     logout: "Logout",
@@ -892,6 +911,8 @@ const translations: Record<Language, Translations> = {
     selectBank: "Select Bank",
     defaultAccount: "Default Account",
     copyAccountNumber: "Copy Account Number",
+    copy: "Copy",
+    accountShort: "Account",
     bankInfoNotFound:
       "Bank information not found. Please check account details in email.",
     transferSenderName: "Sender Name",
@@ -930,9 +951,11 @@ const translations: Record<Language, Translations> = {
     paymentStatus: "Payment Status",
     orderNumber: "Order Number",
     totalItems: "Total",
+    productUnit: "items",
     orderDate: "Date",
     showMore: "more...",
     showDetails: "Details",
+    orderDetails: "Order details",
     collapse: "Collapse",
 
     // 주문 상태
@@ -945,6 +968,7 @@ const translations: Record<Language, Translations> = {
     push: {
       title: "Order notifications",
       desc: "Get a notification when your payment is confirmed and your order is delivered.",
+      short: "Get payment and delivery updates",
       on: "On",
       turnOn: "Turn on notifications",
       turnOff: "Turn off",

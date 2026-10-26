@@ -69,6 +69,19 @@ function isNonDeliveryDay(
   });
 }
 
+const WEEK_DAYS: Record<string, string[]> = {
+  mn: ["Ням", "Даваа", "Мягмар", "Лхагва", "Пүрэв", "Баасан", "Бямба"],
+  ko: ["일", "월", "화", "수", "목", "금", "토"],
+  ru: ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"],
+  en: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
+};
+
+// Compact "10/28 (Лхагва)" form used in the My Page order card header
+export function formatShortDeliveryDate(date: Date, language: string = "mn"): string {
+  const dayOfWeek = (WEEK_DAYS[language] || WEEK_DAYS.mn)[date.getDay()];
+  return `${date.getMonth() + 1}/${date.getDate()} (${dayOfWeek})`;
+}
+
 export function formatDeliveryDate(
   date: Date,
   language: string = "mn",
@@ -76,12 +89,7 @@ export function formatDeliveryDate(
   const month = date.getMonth() + 1;
   const day = date.getDate();
 
-  const weekDays: Record<string, string[]> = {
-    mn: ["Ням", "Даваа", "Мягмар", "Лхагва", "Пүрэв", "Баасан", "Бямба"],
-    ko: ["일", "월", "화", "수", "목", "금", "토"],
-    ru: ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"],
-    en: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
-  };
+  const weekDays = WEEK_DAYS;
 
   const monthNames: Record<string, string> = {
     mn: "сар",

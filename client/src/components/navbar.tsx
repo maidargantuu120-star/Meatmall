@@ -46,7 +46,7 @@ export function Navbar() {
   // Default nav links as fallback with translations
   const defaultNavLinks = [
     { href: "/", label: t.home, id: "home" },
-    { href: "/contact", label: t.contact, id: "contact" },
+    { href: "/contact", label: t.about, id: "contact" },
   ];
 
   // Use navigation items from API if available, otherwise use default links

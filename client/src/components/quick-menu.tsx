@@ -177,7 +177,7 @@ export function QuickMenu() {
               aria-label="Scroll to top"
               onClick={scrollTop}
               className={cn(
-                "mr-1.5 flex h-11 w-11 flex-col items-center justify-center rounded-lg bg-ink text-white shadow-lg transition-all",
+                "mr-1.5 flex h-11 w-11 flex-col items-center justify-center rounded-lg bg-ink text-white shadow-lg ring-1 ring-white/25 transition-all",
                 showTop ? "opacity-100" : "pointer-events-none translate-y-2 opacity-0",
               )}
             >
