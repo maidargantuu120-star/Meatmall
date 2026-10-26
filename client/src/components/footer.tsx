@@ -97,6 +97,7 @@ export function Footer() {
     companyName = BRAND.name,
     description = "Чанартай махны бүтээгдэхүүн",
     phone = BRAND.phone,
+    address = BRAND.address,
     email = "",
     copyright = t.copyright,
     socialLinks = {},
@@ -199,6 +200,15 @@ export function Footer() {
 
           {/* Contact info */}
           <ul className="space-y-2.5 text-sm text-ink/70">
+            <li className="flex items-start gap-3">
+              <span className="material-icons text-brand text-base flex-shrink-0" aria-hidden="true">
+                location_on
+              </span>
+              <div>
+                <span className="block text-xs font-semibold text-ink/60">{t.address}</span>
+                <address className="not-italic whitespace-pre-line break-words text-ink">{address || BRAND.address}</address>
+              </div>
+            </li>
             <li className="flex items-center gap-3">
               <FaFacebook className="text-brand text-base flex-shrink-0" />
               <a

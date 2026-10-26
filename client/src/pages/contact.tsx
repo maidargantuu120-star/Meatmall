@@ -1,9 +1,13 @@
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, MapPin } from "lucide-react";
 import { Navbar } from "@/components/navbar";
-import { Footer } from "@/components/footer";
+import { Footer, useFooterSettings } from "@/components/footer";
 import { Link } from "wouter";
+import { BRAND } from "@/lib/brand";
+import { useLanguage } from "@/contexts/language-context";
 
 export default function Contact() {
+  const { data: footerSettings } = useFooterSettings();
+  const { t } = useLanguage();
   return (
     <div className="min-h-screen bg-white flex flex-col">
       {/* Navigation */}
@@ -20,6 +24,18 @@ export default function Contact() {
           </Link>
         </div>
       </div>
+
+      <section className="w-full max-w-6xl mx-auto px-4 py-8 md:px-8">
+        <div className="flex items-start gap-4 rounded-2xl border border-gray-200 bg-white p-6">
+          <MapPin className="mt-1 h-6 w-6 shrink-0 text-brand" aria-hidden="true" />
+          <div>
+            <h1 className="text-xl font-bold text-ink">{t.address}</h1>
+            <address className="mt-2 not-italic whitespace-pre-line break-words text-base leading-relaxed text-ink">
+              {footerSettings?.address || BRAND.address}
+            </address>
+          </div>
+        </div>
+      </section>
 
       {/* Image Section */}
       <div className="flex-1 bg-white">
