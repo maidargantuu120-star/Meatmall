@@ -75,7 +75,7 @@ export function MobileBottomNav({
         >
           <div className="fixed top-0 left-0 right-0 bg-white shadow-lg z-50 max-h-[70vh] overflow-y-auto">
             <div className="px-4 pt-4 pb-3 space-y-1">
-              {/* Contact Link */}
+              {/* About Link */}
               <button
                 onClick={() => {
                   setLocation("/contact");
@@ -83,7 +83,7 @@ export function MobileBottomNav({
                 }}
                 className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-brand hover:bg-gray-50 transition-all duration-200 border-l-2 border-transparent hover:border-brand/50"
               >
-                {t.contact}
+                {t.about}
               </button>
 
               {/* Language Switcher */}

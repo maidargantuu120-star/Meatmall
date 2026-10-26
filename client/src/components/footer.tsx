@@ -248,7 +248,7 @@ export function Footer() {
 
       {/* Bottom: legal, copyright, admin login */}
       {/* Extra bottom padding on mobile clears the TOP button above the bottom nav */}
-      <div className="bg-bark">
+      <div className="bg-ink">
         <div className="max-w-6xl mx-auto px-4 md:px-8 pt-6 pb-24 md:pb-6 flex flex-col items-center gap-3 text-xs text-white/50 text-center">
           <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 whitespace-nowrap">
             <Link href="/privacy">

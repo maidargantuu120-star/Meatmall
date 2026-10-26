@@ -22,6 +22,7 @@ import {
   formatPrice,
   formatOrderId,
   formatDate,
+  normalizeDate,
   translateOrderStatus,
   getOrderStatusText,
   cn,
@@ -33,13 +34,19 @@ import {
   PackageOpen,
   ChefHat,
   ChevronDown,
+  Check,
+  Copy,
 } from "lucide-react";
 import { useLocation } from "wouter";
-import { OrderTracker } from "@/components/order-tracker";
+import { OrderTracker, useDeliveryEta } from "@/components/order-tracker";
+import { formatShortDeliveryDate } from "@/lib/delivery-date";
 import { PushCard } from "@/components/push-card";
 import { GeneratedMealKitCard } from "@/components/generated-meal-kit-card";
 
 type OrderWithItems = Order & { items: (OrderItem & { product: Product })[] };
+
+// Statuses that have tracker copy (title / sub) in t.orderTracker
+const TRACKER_STATUSES = ["pending", "processing", "completed", "cancelled"] as const;
 
 // Interface for meal kit components
 interface GeneratedMealKitComponent {
@@ -75,6 +82,7 @@ export default function MyPage() {
   const { t } = useLanguage();
   const [, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState<"orders" | "meal-kits">("orders");
+  const [profileOpen, setProfileOpen] = useState(false);
 
   // Fetch user orders
   const {
@@ -178,23 +186,45 @@ export default function MyPage() {
         <div className="flex flex-col md:flex-row gap-6">
           {/* User Profile Section */}
           <div className="w-full space-y-6 md:w-1/3 lg:w-1/4">
-            <Card className="gradient-card border-none shadow-lg overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-blue-500/10 to-transparent rounded-bl-full"></div>
-              <CardHeader>
-                <CardTitle
-                  className="relative font-bold"
-                  style={blackTextStyle}
+            <Card className="relative gradient-card border-none shadow-lg overflow-hidden">
+              <div className="pointer-events-none absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-brand/10 to-transparent rounded-bl-full"></div>
+              {/* Tapping the header expands/collapses the details; the chevron is the accessible control */}
+              <div
+                onClick={() => setProfileOpen((open) => !open)}
+                className="relative flex w-full cursor-pointer select-none items-start justify-between gap-2 transition-colors hover:bg-ink/[0.02]"
+              >
+                <CardHeader className="min-w-0 flex-1 px-4 sm:px-6">
+                  <CardTitle
+                    className="relative truncate text-xl font-bold sm:text-2xl"
+                    style={blackTextStyle}
+                  >
+                    {t.userInfo}
+                  </CardTitle>
+                  <CardDescription className="relative truncate text-xs sm:text-sm" style={blackTextStyle}>
+                    {t.userInfoDesc}
+                  </CardDescription>
+                </CardHeader>
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setProfileOpen((open) => !open);
+                  }}
+                  aria-expanded={profileOpen}
+                  aria-controls="my-page-profile-details"
+                  aria-label={profileOpen ? t.collapse : t.showDetails}
+                  className="mr-4 mt-6 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-ink/5 text-ink transition-colors hover:bg-ink/10 sm:mr-5"
                 >
-                  {t.userInfo}
-                </CardTitle>
-                <CardDescription className="relative" style={blackTextStyle}>
-                  {t.userInfoDesc}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
+                  <ChevronDown
+                    className={cn("h-4 w-4 transition-transform duration-300", profileOpen && "rotate-180")}
+                    aria-hidden="true"
+                  />
+                </button>
+              </div>
+              <CardContent className="px-4 sm:px-6">
                 {user ? (
-                  <div className="space-y-4 relative">
-                    <div className="flex items-center space-x-4 mb-6">
+                  <div className="relative">
+                    <div className="flex items-center space-x-4">
                       <div className="my-page-avatar">
                         {user.name
                           ? user.name.charAt(0)
@@ -213,6 +243,17 @@ export default function MyPage() {
                       </div>
                     </div>
 
+                    {/* Collapsible details: grid-rows 0fr → 1fr animates to the content height;
+                        `invisible` keeps the hidden logout button out of the tab order */}
+                    <div
+                      id="my-page-profile-details"
+                      className={cn(
+                        "grid transition-[grid-template-rows,opacity,visibility] duration-300 ease-out motion-reduce:transition-none",
+                        profileOpen ? "visible grid-rows-[1fr] opacity-100" : "invisible grid-rows-[0fr] opacity-0",
+                      )}
+                    >
+                    <div className="min-h-0 overflow-hidden">
+                    <div className="space-y-4 pt-6">
                     <div className="space-y-3 p-4 bg-white/50 rounded-lg backdrop-blur-sm">
                       <div className="text-sm flex items-start">
                         <span
@@ -252,6 +293,9 @@ export default function MyPage() {
                       )}
                       {t.logout}
                     </Button>
+                    </div>
+                    </div>
+                    </div>
                   </div>
                 ) : (
                   <div className="py-4 text-center">
@@ -265,8 +309,8 @@ export default function MyPage() {
 
           {/* Order History Section */}
           <div className="w-full md:w-2/3 lg:w-3/4">
-            <Card className="gradient-card border-none shadow-lg overflow-hidden">
-              <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-bl from-red-500/10 to-transparent rounded-bl-full"></div>
+            <Card className="relative gradient-card border-none shadow-lg overflow-hidden">
+              <div className="pointer-events-none absolute top-0 right-0 w-40 h-40 bg-gradient-to-bl from-brand/10 to-transparent rounded-bl-full"></div>
               <CardHeader>
                 <CardTitle
                   className="relative font-bold"
@@ -278,7 +322,7 @@ export default function MyPage() {
                   {t.orderHistoryDesc}
                 </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="px-3 sm:px-6">
                 {isOrdersLoading ? (
                   <div className="py-12 text-center">
                     <Loader2 className="h-8 w-8 animate-spin mx-auto text-muted-foreground" />
@@ -351,9 +395,18 @@ function OrderCard({
 }) {
   const { t, language } = useLanguage();
   const [expanded, setExpanded] = useState(false);
+  const [copiedAccount, setCopiedAccount] = useState<number | null>(null);
+  const eta = useDeliveryEta(order.status, order.createdAt);
 
-  // Calculate order summary data
-  const totalItems = order.items.reduce((sum, item) => sum + item.quantity, 0);
+  const copyAccount = async (index: number, accountNumber: string) => {
+    try {
+      await navigator.clipboard.writeText(accountNumber);
+      setCopiedAccount(index);
+      setTimeout(() => setCopiedAccount(null), 2000);
+    } catch {
+      // Clipboard blocked: the number stays visible and selectable
+    }
+  };
 
   // Toggle expanded view
   const toggleExpand = () => {
@@ -363,8 +416,19 @@ function OrderCard({
   const statusText =
     t.orderStatus[order.status as keyof typeof t.orderStatus] || order.status;
 
+  // Header copy comes from the tracker strings (title → pill, sub → status line)
+  const trackerCopy = (TRACKER_STATUSES as readonly string[]).includes(order.status)
+    ? t.orderTracker[order.status as (typeof TRACKER_STATUSES)[number]]
+    : null;
+  const cancelled = order.status === "cancelled";
+  const placed = order.createdAt ? normalizeDate(order.createdAt) : null;
+  const placedText =
+    placed && !Number.isNaN(placed.getTime())
+      ? `${placed.getFullYear()}.${String(placed.getMonth() + 1).padStart(2, "0")}.${String(placed.getDate()).padStart(2, "0")}`
+      : null;
+
   return (
-    <Card className="overflow-hidden border-none shadow-md gradient-card">
+    <Card className="relative overflow-hidden border-none shadow-md gradient-card">
       <div
         className={cn(
           "absolute top-0 left-0 h-full w-1",
@@ -372,37 +436,53 @@ function OrderCard({
         )}
       ></div>
       <div className="p-4 sm:p-6 relative">
-        {/* Order header with summary information */}
-        <div className="flex flex-col sm:flex-row sm:items-start justify-between mb-4 gap-4">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <h3 className="font-semibold text-lg" style={blackTextStyle}>
-                {formatOrderId(order.id)}
-              </h3>
-            </div>
-            <p className="text-sm" style={blackTextStyle}>
-              {t.orderDate}:{" "}
-              {order.createdAt ? formatDate(order.createdAt) : t.orderDate}
-            </p>
-          </div>
-          <div className="text-right">
-            <div className="text-lg font-bold" style={blackTextStyle}>
-              {formatPrice(order.totalAmount)}
-            </div>
-            <p className="text-sm" style={blackTextStyle}>
-              {t.totalItems} {totalItems} {t.orderedProducts.toLowerCase()}
-            </p>
-          </div>
+        {/* Header: order number, then date · item count on its own full-width line */}
+        <h3 className="whitespace-nowrap font-display text-xl font-extrabold leading-tight text-ink">
+          {formatOrderId(order.id)}
+        </h3>
+        <p className="mt-1 truncate text-sm text-ink/60">
+          {[placedText, `${order.items.length} ${t.productUnit}`].filter(Boolean).join(" · ")}
+        </p>
+
+        {/* Status: full status label as a pill on its own line (fits one line on phones),
+            then the status line and estimated delivery day */}
+        <div className="mt-4">
+          <span
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold leading-tight",
+              cancelled ? "bg-ink/5 text-ink/50" : "bg-brand/10 text-brand",
+            )}
+          >
+            <span className={cn("h-1.5 w-1.5 rounded-full", cancelled ? "bg-ink/40" : "bg-brand")} aria-hidden="true" />
+            {trackerCopy?.title ?? statusText}
+          </span>
+          {trackerCopy && (
+            <>
+              <p className="mt-2 truncate text-sm font-semibold text-ink sm:whitespace-normal sm:text-base" title={trackerCopy.sub}>
+                {trackerCopy.sub}
+              </p>
+              {eta && (
+                <p className="mt-1 truncate text-sm text-ink/60">
+                  {t.orderTracker.eta} · {formatShortDeliveryDate(eta, language)}
+                </p>
+              )}
+            </>
+          )}
         </div>
 
-        {/* Delivery-app style status tracker */}
-        <div className="mb-4 border-y border-ink/10 py-5">
-          <OrderTracker status={order.status} createdAt={order.createdAt} />
+        {/* Delivery-app style status bar */}
+        <div className="mb-4 mt-2 border-b border-ink/10 pb-5">
+          <OrderTracker status={order.status} createdAt={order.createdAt} bare />
         </div>
 
-        {/* Order items preview (collapsed view) */}
+        {/* Order items preview (collapsed view): tapping it opens the details too */}
         {!expanded && (
-          <div className="flex flex-wrap gap-2 mb-4">
+          <button
+            type="button"
+            onClick={toggleExpand}
+            aria-expanded={expanded}
+            className="-mx-2 mb-1 flex w-[calc(100%+1rem)] flex-wrap gap-2 rounded-xl p-2 text-left transition-colors hover:bg-ink/[0.03]"
+          >
             {order.items.slice(0, 3).map((item) => (
               <div
                 key={item.id}
@@ -433,7 +513,7 @@ function OrderCard({
                 +{order.items.length - 3} {t.showMore}
               </div>
             )}
-          </div>
+          </button>
         )}
 
         {/* Expanded order details */}
@@ -518,12 +598,11 @@ function OrderCard({
                     bankAccounts.map((account: any, index: number) => (
                       <dl
                         key={index}
-                        className="space-y-1.5 rounded-lg border border-ink/10 bg-white p-3 text-xs"
+                        className={cn("space-y-2.5", index > 0 && "border-t border-ink/10 pt-3")}
                       >
                         {[
                           [t.bank, account.bankName],
                           [t.accountHolder, account.accountHolder],
-                          [t.accountNumber, account.accountNumber],
                         ].map(([label, value]) => (
                           <div key={label} className="flex gap-3">
                             <dt className="w-24 flex-shrink-0 text-ink/60">{label}</dt>
@@ -532,6 +611,27 @@ function OrderCard({
                             </dd>
                           </div>
                         ))}
+                        <div className="flex gap-3">
+                          <dt className="w-24 flex-shrink-0 text-ink/60">{t.accountShort}</dt>
+                          <dd className="min-w-0 flex-1">
+                            <span className="block break-words font-display font-extrabold tracking-wide text-ink">
+                              {account.accountNumber}
+                            </span>
+                            {/* Same value as checkout's copy button: the number as stored */}
+                            <button
+                              type="button"
+                              onClick={() => copyAccount(index, account.accountNumber)}
+                              className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-brand/10 px-2.5 py-1 text-xs font-bold text-brand transition-colors hover:bg-brand hover:text-white"
+                            >
+                              {copiedAccount === index ? (
+                                <Check className="h-3.5 w-3.5" aria-hidden="true" />
+                              ) : (
+                                <Copy className="h-3.5 w-3.5" aria-hidden="true" />
+                              )}
+                              {copiedAccount === index ? t.install.copied : t.copy}
+                            </button>
+                          </dd>
+                        </div>
                       </dl>
                     ))
                   ) : (
@@ -574,16 +674,17 @@ function OrderCard({
           </div>
         )}
 
-        {/* Toggle: "show order details" row, like delivery apps */}
+        {/* Full-width "Order details" row at the bottom, like delivery apps */}
         <button
           type="button"
           onClick={toggleExpand}
           aria-expanded={expanded}
-          className="mt-4 -mx-4 -mb-4 flex w-[calc(100%+2rem)] items-center justify-center gap-1 border-t border-ink/10 py-3.5 text-sm font-bold text-ink transition-colors hover:bg-surface sm:-mx-6 sm:-mb-6 sm:w-[calc(100%+3rem)]"
+          className="-mx-4 -mb-4 mt-4 flex w-[calc(100%+2rem)] items-center justify-center gap-1.5 border-t border-ink/10 py-3.5 font-display text-sm font-extrabold text-ink transition-colors hover:bg-surface hover:text-brand sm:-mx-6 sm:-mb-6 sm:w-[calc(100%+3rem)]"
         >
-          {expanded ? t.collapse : t.showDetails}
+          {expanded ? t.collapse : t.orderDetails}
           <ChevronDown
-            className={cn("h-4 w-4 transition-transform", expanded && "rotate-180")}
+            className={cn("h-4 w-4 transition-transform duration-300", expanded && "rotate-180")}
+            aria-hidden="true"
           />
         </button>
       </div>
