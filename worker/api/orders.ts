@@ -6,6 +6,7 @@ import { D1Storage, IStorage } from '../storage';
 import { notifyAdmins, notifyUser, orderNo, STATUS_NOTICES, won } from '../push';
 import { deliverOrderEmail, emailConfigured, renderOrderEmail } from '../email';
 import type { OrderEmailReceipt } from '../../shared/order-email';
+import { destinationParts, readShippingRates, shippingQuote } from '../../shared/shipping';
 
 type Env = {
     Bindings: Bindings;
@@ -141,14 +142,21 @@ app.post('/orders', async (c) => {
             subtotal += product.price * quantity;
         }
         const shipping = await storage.getSiteSettingByKey('shipping_fee');
-        const shippingRules = shipping ? JSON.parse(shipping.value) : [];
-        const shippingFee = Array.isArray(shippingRules) && shippingRules.length ? Number(shippingRules[0].fee) : 6000;
-        if (!Number.isFinite(shippingFee) || shippingFee < 0) throw new Error('Invalid shipping fee');
         for (const field of ['customerName', 'customerPhone', 'customerAddress']) {
             if (typeof orderData[field] !== 'string' || !orderData[field].trim()) {
                 return c.json({ message: 'Customer name, phone and address are required' }, 400);
             }
         }
+        if (orderData.customerPostalCode !== undefined && typeof orderData.customerPostalCode !== 'string') return c.json({ message: 'Invalid postal code' }, 400);
+        const destination = destinationParts(orderData.customerAddress, orderData.customerPostalCode || '');
+        if (destination.postalCode && !/^(?!00000)[0-9]{5}$/.test(destination.postalCode)) return c.json({ message: 'Invalid postal code' }, 400);
+        const quote = shippingQuote(readShippingRates(shipping?.value), destination.street, destination.postalCode);
+        if (quote.mismatch) return c.json({ message: 'Хаяг болон шуудангийн код зөрүүтэй байна. Дахин шалгана уу.', code: 'ADDRESS_MISMATCH' }, 400);
+        const shippingFee = quote.total;
+        if (orderData.expectedShippingFee !== undefined && orderData.expectedShippingFee !== shippingFee) {
+            return c.json({ message: 'Хүргэлтийн төлбөр өөрчлөгдсөн байна. Шинэ дүнг шалгаад дахин захиална уу.', code: 'SHIPPING_FEE_CHANGED', shippingFee }, 409);
+        }
+        const customerAddress = destination.postalCode ? `(${destination.postalCode}) ${destination.street}` : destination.street;
         const customerEmail = String(orderData.customerEmail || '').trim();
         if (customerEmail && !/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(customerEmail)) {
             return c.json({ message: 'Invalid customer email' }, 400);
@@ -162,14 +170,16 @@ app.post('/orders', async (c) => {
         }
         const receipt: OrderEmailReceipt = {
             customerName: orderData.customerName, customerEmail,
-            customerPhone: orderData.customerPhone, customerAddress: orderData.customerAddress,
+            customerPhone: orderData.customerPhone, customerAddress,
             transferAccountHolder: String(orderData.transferAccountHolder || orderData.customerName),
             placedAt: new Date().toISOString(), items: receiptItems, subtotal, shippingFee,
+            shippingBaseFee: quote.baseFee, shippingSurcharge: quote.surcharge, shippingRegion: quote.region,
             totalAmount: Math.round((subtotal + shippingFee) * 100) / 100,
             paymentAccount: account?.isActive ? { bankName: account.bankName, accountNumber: account.accountNumber, accountHolder: account.accountHolder } : null,
         };
         const order = await storage.createOrder({
             ...orderData,
+            customerAddress,
             totalAmount: Math.round((subtotal + shippingFee) * 100) / 100,
             customerEmail,
             userId: user?.id || null // Allow guest checkout if userId provided or null

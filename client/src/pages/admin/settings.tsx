@@ -24,10 +24,13 @@ import {
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { readShippingRates, serializeShippingRates } from '@shared/shipping';
+import { formatPrice } from '@/lib/utils';
 
 // Define our validation schema
 const shippingRulesSchema = z.object({
-  fee: z.coerce.number().min(0, { message: "0-с их байх ёстой" }),
+  fee: z.coerce.number().int().min(0).max(1000000),
+  jejuSurcharge: z.coerce.number().int().min(0).max(1000000),
 });
 
 type ShippingRulesFormValues = z.infer<typeof shippingRulesSchema>;
@@ -41,18 +44,7 @@ export default function AdminSettings() {
     queryKey: ["/api/settings/shipping-fee"],
     queryFn: async () => {
       const response = await apiRequest("GET", "/api/settings/shipping-fee");
-      try {
-        if (response && response.value) {
-          return JSON.parse(response.value) as {
-            min: number;
-            max: number;
-            fee: number;
-          }[];
-        }
-      } catch (e) {
-        console.error("Failed to parse shipping rules", e);
-      }
-      return [];
+      return readShippingRates(response.value);
     },
   });
 
@@ -60,32 +52,27 @@ export default function AdminSettings() {
   const form = useForm<ShippingRulesFormValues>({
     resolver: zodResolver(shippingRulesSchema),
     defaultValues: {
-      fee: 0,
+      fee: 6000, jejuSurcharge: 6000,
     },
   });
 
   // Update form when data loads
   useEffect(() => {
-    if (shippingRulesData && shippingRulesData.length > 0) {
-      form.reset({ fee: shippingRulesData[0].fee });
-    } else if (shippingRulesData && shippingRulesData.length === 0) {
-      form.reset({ fee: 6000 }); // Default
-    }
+    if (shippingRulesData) form.reset(shippingRulesData);
   }, [shippingRulesData, form]);
 
   // Update shipping rules mutation
   const { mutate: updateShippingRules, isPending } = useMutation({
     mutationFn: async (data: ShippingRulesFormValues) => {
       // Keep backend schema structure the same by wrapping in array for 'shipping_rules' setting
-      const rules = [{ min: 0, max: 999999, fee: data.fee }];
       return apiRequest("PUT", "/api/settings/shipping-fee", {
-        value: JSON.stringify(rules),
+        value: serializeShippingRates(data),
       });
     },
     onSuccess: () => {
       toast({
         title: "Хүргэлтийн дүрэм шинэчлэгдлээ",
-        description: "Шинэ хүргэлтийн жингийн интервалууд хадгалагдлаа.",
+        description: "Үндсэн төлбөр болон Чэжүгийн нэмэгдэл хадгалагдлаа.",
       });
       queryClient.invalidateQueries({
         queryKey: ["/api/settings/shipping-fee"],
@@ -122,7 +109,7 @@ export default function AdminSettings() {
                 </p>
                 <p>
                   <strong>Хүргэлтийн төлбөр:</strong> Энэ тохиргоо нь захиалга
-                  хийх үед нийт жингээс хамаарч бодогдох хүргэлтийн төлбөрийг
+                  хийх үед үндсэн төлбөр болон Чэжү бүсийн нэмэлт төлбөрийг
                   тохируулна.
                 </p>
               </div>
@@ -159,7 +146,7 @@ export default function AdminSettings() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel className="max-md:text-xs max-md:font-semibold max-md:text-ink/60">
-                            Төлбөр (₩)
+                            Үндсэн хүргэлтийн төлбөр (₩)
                           </FormLabel>
                           <FormControl>
                             <Input
@@ -175,7 +162,18 @@ export default function AdminSettings() {
                       )}
                     />
                   </div>
-
+                  <FormField control={form.control} name="jejuSurcharge" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Чэжү нэмэлт төлбөр · 제주 추가 배송비 (₩)</FormLabel>
+                      <FormControl><Input {...field} type="number" min="0" max="1000000" step="10" inputMode="numeric" className="max-w-xs max-md:max-w-none" /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                  <div className="rounded-xl bg-surface p-4 text-sm" role="status">
+                    <p>Үндсэн: {formatPrice(Number(form.watch('fee')) || 0)}</p>
+                    <p className="mt-1 font-semibold">Чэжү нийт: {formatPrice((Number(form.watch('fee')) || 0) + (Number(form.watch('jejuSurcharge')) || 0))}</p>
+                    <p className="mt-2 text-ink/60">Хүргэлтийн хаяг, шуудангийн кодоор Чэжү (제주) бүсийг автоматаар ялгана. Шинэ төлбөр дараагийн захиалгад шууд үйлчилнэ.</p>
+                  </div>
                   <Button
                     type="submit"
                     disabled={isPending}

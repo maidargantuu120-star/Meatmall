@@ -44,6 +44,34 @@ Never run this script against a production database.
 
 ## Store setup
 
+### Shipping fees and Jeju
+
+Administrators edit base shipping and the additional Jeju fee at `/admin/settings`.
+The existing `shipping_fee` JSON setting keeps its array format; the first row
+now includes `jejuSurcharge`. A legacy row without that field defaults to 6,000
+won additional Jeju shipping while preserving its existing base fee. No database
+migration or redeployment is needed for later fee changes. Old administrator
+clients that only save the base fee preserve the configured surcharge.
+
+Checkout offers Kakao Postcode search, filling the Korean address and five-digit
+postal code, with manual input available if the service fails. The shared policy
+checks Jeju addresses and postal codes 63000–63644. Conflicting mainland/Jeju
+address and postcode information blocks checkout. The browser displays base plus
+Jeju surcharge, and the server independently recalculates from the submitted
+destination and stored settings. A changed expected fee returns 409 before any
+order/inventory mutation, so the buyer must review the new amount and submit again.
+Cart totals are estimates until the destination is entered.
+
+Orders store the postal code with their delivery address. Receipt snapshots keep
+the base fee, surcharge, region and final total from order time; later settings
+changes do not reprice old orders. The admin receipt identifies Jeju destinations.
+Existing clients without a postcode still have their Korean Jeju address checked.
+
+Validate with `npm run check`, `npm run build`, and `node scripts/test-shipping.mjs`.
+The test creates disposable local products/orders only, with no email/push keys.
+Also verify a real Kakao address selection in local checkout and administrator
+fee editing. Never create test orders in the production database.
+
 The repository contains code and old image files, not a current product/customer
 database export. A new D1 starts without products, orders, customer records or bank
 accounts. Add verified product inventory, business details, delivery fees and bank

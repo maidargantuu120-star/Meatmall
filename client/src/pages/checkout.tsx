@@ -17,6 +17,8 @@ import { logger } from "@/lib/logger";
 import { Loader2, LogIn, UserCircle2 } from "lucide-react";
 import { insertOrderSchema, BankAccount } from "@shared/schema";
 import { useLanguage } from "@/contexts/language-context";
+import { readShippingRates, shippingQuote } from '@shared/shipping';
+import { AddressSearch } from '@/components/address-search';
 import {
   Form,
   FormControl,
@@ -52,6 +54,7 @@ const checkoutFormSchema = z.object({
   customerAddress: z.string().min(5, {
     message: "Хүргэлтийн хаяг хамгийн багадаа 5 тэмдэгт байх ёстой",
   }),
+  customerPostalCode: z.string().regex(/^(?!00000)[0-9]{5}$/, '5 оронтой шуудангийн кодоо оруулна уу.'),
   paymentMethod: z.enum(["bank_transfer"], {
     required_error: "Төлбөрийн хэлбэрээ сонгоно уу",
   }),
@@ -73,7 +76,6 @@ export default function Checkout() {
   const { t } = useLanguage();
   const [location, setLocation] = useLocation();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [shippingFee, setShippingFee] = useState(0);
 
   // 로그인 상태 확인 및 리다이렉트
   useEffect(() => {
@@ -91,38 +93,16 @@ export default function Checkout() {
 
 
   // Fetch shipping rules from server
-  const { data: shippingRulesData, isLoading: isLoadingShippingFee } = useQuery(
+  const { data: shippingRates, isLoading: isLoadingShippingFee, isError: shippingError } = useQuery(
     {
-      queryKey: ["shipping-fee"],
+      queryKey: ["/api/settings/shipping-fee"],
       queryFn: async () => {
-        try {
-          const data = await apiRequest("GET", "/api/settings/shipping-fee");
-          if (data && data.value) {
-            return JSON.parse(data.value) as {
-              min: number;
-              max: number;
-              fee: number;
-            }[];
-          }
-        } catch (error) {
-          console.error("Error fetching shipping fee:", error);
-        }
-        return []; // Default
+        const data = await apiRequest("GET", "/api/settings/shipping-fee");
+        return readShippingRates(data.value);
       },
     },
   );
 
-  // Update shipping fee when data changes
-  useEffect(() => {
-    let fee = 0;
-    if (shippingRulesData && shippingRulesData.length > 0) {
-      fee = shippingRulesData[0].fee;
-    } else if (!isLoadingShippingFee) {
-      fee = 6000;
-    }
-    console.log(`Calculated shipping fee: ${fee}`);
-    setShippingFee(fee);
-  }, [shippingRulesData, isLoadingShippingFee]);
 
   // Fetch all bank accounts
   const { data: bankAccounts = [], isLoading: isBankAccountsLoading } =
@@ -164,12 +144,18 @@ export default function Checkout() {
       customerEmail: user?.email || "",
       customerPhone: user?.phone || "",
       customerAddress: "",
+      customerPostalCode: "",
       paymentMethod: "bank_transfer",
       selectedBankAccount: defaultBankAccount?.id?.toString() || "",
       transferAccountHolder: user?.name || "",
     },
     mode: "onChange", // Validate fields on change for better user feedback
   });
+
+  const destinationAddress = form.watch('customerAddress');
+  const destinationPostcode = form.watch('customerPostalCode');
+  const deliveryQuote = shippingRates ? shippingQuote(shippingRates, destinationAddress, destinationPostcode) : null;
+  const shippingFee = deliveryQuote?.total ?? 0;
 
   // Update the form values when user or defaultBankAccount changes
   useEffect(() => {
@@ -204,6 +190,10 @@ export default function Checkout() {
 
   // Enhanced form submission handler with better debugging
   const onSubmit = async (data: CheckoutFormValues) => {
+    if (!deliveryQuote || shippingError || deliveryQuote.mismatch) {
+      toast({ title: deliveryQuote?.mismatch ? t.shipping.mismatch : t.shipping.unavailable, variant: 'destructive' });
+      return;
+    }
     logger.custom("⏳", "주문 생성 시작...");
 
     // Log order data
@@ -246,6 +236,8 @@ export default function Checkout() {
         customerEmail: data.customerEmail,
         customerPhone: data.customerPhone,
         customerAddress: data.customerAddress,
+        customerPostalCode: data.customerPostalCode,
+        expectedShippingFee: shippingFee,
         paymentMethod: data.paymentMethod,
         selectedBankAccount: data.selectedBankAccount,
         transferAccountHolder: data.transferAccountHolder,
@@ -259,10 +251,17 @@ export default function Checkout() {
         price: item.price,
       }));
 
-      const order = await apiRequest("POST", "/api/orders", {
-        orderData,
-        cartItems: cartItemsForApi,
-      });
+      const response = await fetch('/api/orders', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderData, cartItems: cartItemsForApi }) });
+      const order = await response.json() as { id: number; totalAmount: number; message?: string; code?: string };
+      if (!response.ok) {
+        if (order.code === 'SHIPPING_FEE_CHANGED') {
+          await queryClient.invalidateQueries({ queryKey: ['/api/settings/shipping-fee'] });
+          toast({ title: t.shipping.changed, variant: 'destructive' });
+          return;
+        }
+        throw new Error(order.message || 'Order failed');
+      }
 
       logger.success("Master Order болон Items амжилттай үүслээ:", {
         orderId: order.id,
@@ -452,6 +451,10 @@ export default function Checkout() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>{t.address}</FormLabel>
+                      <AddressSearch onSelect={(address, postcode) => {
+                        form.setValue('customerAddress', address, { shouldValidate: true });
+                        form.setValue('customerPostalCode', postcode, { shouldValidate: true });
+                      }} />
                       <FormControl>
                         <Textarea
                           placeholder="Та хот/дүүрэг хороо/ байрны тоотоо тодорхой солонгосоор бичиж оруулна уу."
@@ -460,9 +463,20 @@ export default function Checkout() {
                         />
                       </FormControl>
                       <FormMessage />
+                      <p className="text-xs text-muted-foreground">{t.shipping.hint}</p>
                     </FormItem>
                   )}
                 />
+
+                <FormField control={form.control} name="customerPostalCode" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t.shipping.postcode}</FormLabel>
+                    <FormControl><Input {...field} inputMode="numeric" autoComplete="postal-code" maxLength={5} placeholder="63122" /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                {deliveryQuote?.mismatch && <p role="alert" className="text-sm text-destructive">{t.shipping.mismatch}</p>}
+                {deliveryQuote?.region === 'jeju' && <p role="status" className="rounded-lg bg-brand/5 p-3 text-sm text-brand">{t.shipping.detected}</p>}
 
                 <div className="space-y-4 rounded-lg p-5 border-2 border-blue-400/70 bg-white shadow-md">
                   <div className="flex items-center bg-brand px-4 py-2 rounded-md -mt-2 -mx-1 shadow-sm">
@@ -688,7 +702,7 @@ export default function Checkout() {
                 <Button
                   type="submit"
                   className="w-full bg-brand hover:brightness-105 text-white font-medium py-6 transition-all duration-300 shadow-sm hover:shadow-md"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || isLoadingShippingFee || shippingError || !deliveryQuote || deliveryQuote.mismatch}
                 >
                   {isSubmitting ? (
                     <>
@@ -738,6 +752,11 @@ export default function Checkout() {
                     )}
                   </span>
                 </div>
+                {deliveryQuote?.region === 'jeju' && <p className="text-xs text-ink/60" data-testid="jeju-shipping-breakdown">
+                  {t.shipping.base}: {formatPrice(deliveryQuote.baseFee)} + {t.shipping.jeju}: {formatPrice(deliveryQuote.surcharge)} = {formatPrice(deliveryQuote.total)}
+                </p>}
+                {!destinationAddress && <p className="text-xs text-ink/60">{t.shipping.estimate}</p>}
+                {shippingError && <p role="alert" className="text-sm text-destructive">{t.shipping.unavailable}</p>}
                 <div className="flex justify-between text-lg font-bold mt-4 pt-4 border-t border-gray-100">
                   <span className="text-foreground">{t.totalAmount}:</span>
                   <span className="text-brand font-bold">

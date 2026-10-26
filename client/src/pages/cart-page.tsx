@@ -11,6 +11,7 @@ import { useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/language-context";
 import { apiRequest } from "@/lib/queryClient";
+import { readShippingRates, type ShippingRates } from '@shared/shipping';
 
 export default function CartPage() {
   const { items, totalPrice, updateQuantity, removeItem } = useCart();
@@ -36,27 +37,20 @@ export default function CartPage() {
 
   // Fetch shipping fee rules from the server
   const { data: shippingRulesData, isLoading: isLoadingShippingFee } = useQuery<
-    { min: number; max: number; fee: number }[]
+    ShippingRates
   >({
-    queryKey: ["shipping-fee"],
+    queryKey: ["/api/settings/shipping-fee"],
     queryFn: async () => {
-      try {
-        const res = await apiRequest("GET", "/api/settings/shipping-fee");
-        if (res && res.value) {
-          return JSON.parse(res.value);
-        }
-      } catch (error) {
-        console.error("Error fetching shipping rules:", error);
-      }
-      return [];
+      const res = await apiRequest("GET", "/api/settings/shipping-fee");
+      return readShippingRates(res.value);
     },
     enabled: !isEmpty && !!user,
   });
 
   // Calculate fixed shipping fee
   let shippingFee = 0;
-  if (shippingRulesData && shippingRulesData.length > 0) {
-    shippingFee = shippingRulesData[0].fee;
+  if (shippingRulesData) {
+    shippingFee = shippingRulesData.fee;
   } else if (!isLoadingShippingFee) {
     shippingFee = 6000;
   }
@@ -175,6 +169,7 @@ export default function CartPage() {
                   </span>
                 </div>
 
+                <p className="text-xs text-ink/60">{t.shipping.estimate}</p>
                 <div className="flex justify-between text-lg font-bold mt-4 pt-4 border-t border-gray-100">
                   <span className="text-foreground">{t.totalAmount}:</span>
                   <span className="text-brand font-bold">

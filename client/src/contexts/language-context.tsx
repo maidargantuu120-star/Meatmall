@@ -101,6 +101,7 @@ export interface Translations {
   totalQuantity: string;
   pieces: string;
   shippingFee: string;
+  shipping: { base: string; jeju: string; detected: string; estimate: string; postcode: string; search: string; searchError: string; mismatch: string; hint: string; unavailable: string; changed: string };
   totalAmount: string;
   placeOrder: string;
   continueShopping: string;
@@ -348,6 +349,7 @@ const translations: Record<Language, Translations> = {
     totalQuantity: "Нийт тоо",
     pieces: "ширхэг",
     shippingFee: "Хүргэлтийн төлбөр",
+    shipping: { base: 'Үндсэн хүргэлт', jeju: 'Чэжү нэмэгдэл (제주)', detected: 'Чэжү (제주) хүргэлтийн бүс: нэмэлт төлбөр тооцогдоно.', estimate: 'Чэжү (제주)-д нэмэлт төлбөртэй. Эцсийн дүн хаяг оруулсны дараа гарна.', postcode: 'Шуудангийн код', search: 'Хаяг хайх', searchError: 'Хаяг хайх үйлчилгээ нээгдсэнгүй. Шуудангийн код болон солонгос хаягаа гараар оруулна уу.', mismatch: 'Хаяг болон шуудангийн код зөрүүтэй байна. Дахин шалгана уу.', hint: 'Хаяг хайж сонгоод байр, тоотын мэдээллээ нэмж оруулна уу.', unavailable: 'Хүргэлтийн төлбөрийг ачаалж чадсангүй. Дахин оролдоно уу.', changed: 'Хүргэлтийн төлбөр өөрчлөгдлөө. Шинэ дүнг шалгаад дахин захиална уу.' },
     totalAmount: "Нийт дүн",
     placeOrder: "Захиалга хийх",
     continueShopping: "Үргэлжлүүлэн худалдан авах",
@@ -612,6 +614,7 @@ const translations: Record<Language, Translations> = {
     totalQuantity: "Общее количество",
     pieces: "шт.",
     shippingFee: "Стоимость доставки",
+    shipping: { base: 'Базовая доставка', jeju: 'Доплата за Чеджу (제주)', detected: 'Адрес на Чеджу (제주): добавлена доплата.', estimate: 'Для Чеджу (제주) действует доплата. Итог после ввода адреса.', postcode: 'Почтовый индекс', search: 'Найти адрес', searchError: 'Поиск недоступен. Введите индекс и корейский адрес вручную.', mismatch: 'Адрес и индекс не совпадают. Проверьте данные.', hint: 'Выберите адрес через поиск, затем добавьте номер квартиры.', unavailable: 'Не удалось загрузить стоимость доставки. Попробуйте снова.', changed: 'Стоимость доставки изменилась. Проверьте новую сумму и повторите заказ.' },
     totalAmount: "Итого",
     placeOrder: "Оформить заказ",
     continueShopping: "Продолжить покупки",
@@ -877,6 +880,7 @@ const translations: Record<Language, Translations> = {
     totalQuantity: "Total Quantity",
     pieces: "pcs",
     shippingFee: "Shipping Fee",
+    shipping: { base: 'Base shipping', jeju: 'Jeju surcharge (제주)', detected: 'Jeju (제주) destination: an additional delivery fee applies.', estimate: 'Jeju (제주) costs extra. The final fee appears after you enter your address.', postcode: 'Postal code', search: 'Find address', searchError: 'Address search is unavailable. Enter your postal code and Korean address manually.', mismatch: 'The address and postal code do not match. Please check them.', hint: 'Find and select your address, then add your apartment and unit number.', unavailable: 'Could not load shipping fees. Please try again.', changed: 'Shipping fees changed. Review the new amount and submit again.' },
     totalAmount: "Total Amount",
     placeOrder: "Place Order",
     continueShopping: "Continue Shopping",

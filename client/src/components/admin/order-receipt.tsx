@@ -4,6 +4,7 @@ import { BrandLogo } from "@/components/brand-logo";
 import { OrderStatusBadge } from "@/components/admin/order-status-badge";
 import { BRAND } from "@/lib/brand";
 import { formatOrderId, formatPrice, isBulkyMeat, normalizeDate } from "@/lib/utils";
+import { DEFAULT_SHIPPING_RATES, shippingQuote } from '@shared/shipping';
 
 export interface ReceiptOrderItem {
   id: number;
@@ -165,6 +166,9 @@ export function OrderReceipt({
         <Dashed />
 
         {/* Delivery */}
+        {shippingQuote(DEFAULT_SHIPPING_RATES, order.customerAddress).region === 'jeju' && (
+          <p className="mb-2 inline-block rounded-full bg-brand/10 px-3 py-1 text-xs font-bold text-brand">Чэжү · 제주</p>
+        )}
         <dl className="space-y-1.5 text-sm">
           {[
             ["Утас", order.customerPhone],

@@ -16,6 +16,8 @@ export function renderOrderEmail(id: number, receipt: OrderEmailReceipt, origin:
     : '<p>Дансны мэдээллийг авахын тулд дэлгүүртэй холбогдоно уу.</p>';
   const rows = receipt.items.map(item => `<tr><td style="padding:12px 0;border-bottom:1px solid #eee"><b>${escape(item.name)}</b><br><span style="font-size:12px;color:#777">${escape(won(item.price))} × ${escape(item.quantity)} кг</span></td><td style="padding:12px 0;border-bottom:1px solid #eee;text-align:right;white-space:nowrap">${escape(won(item.amount))}</td></tr>`).join('');
   const subject = `Meat Mall ${number} — Захиалга хүлээн авлаа`;
+  const shippingDetail = receipt.shippingRegion === 'jeju' && receipt.shippingBaseFee !== undefined && receipt.shippingSurcharge !== undefined
+    ? `Үндсэн хүргэлт ${won(receipt.shippingBaseFee)} + Чэжү (제주) ${won(receipt.shippingSurcharge)} = ${won(receipt.shippingFee)}` : '';
   const html = `<!doctype html><html lang="mn"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;padding:24px 12px;background:#f4f3f1;font-family:Arial,Helvetica,sans-serif;color:#161616"><div style="display:none;max-height:0;overflow:hidden">${escape(number)} · Нийт ${escape(won(receipt.totalAmount))} · Шилжүүлэг хийх дансны мэдээлэл</div><table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td align="center"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;background:white;border-radius:16px"><tr><td style="padding:28px 24px">
   <p style="text-align:center;margin:0"><img src="${escape(new URL('/icons/icon-192.png', base).href)}" width="110" alt="Meat Mall" style="max-width:110px;height:auto"></p>
   <h1 style="text-align:center;font-size:24px;margin:16px 0 8px">Захиалга хүлээн авлаа</h1><p style="text-align:center;color:#777;margin:0 0 24px">Дансаар шилжүүлэг · Төлбөр хүлээгдэж байна</p>
@@ -23,6 +25,7 @@ export function renderOrderEmail(id: number, receipt: OrderEmailReceipt, origin:
   <div style="border-top:2px dashed #ddd;border-bottom:2px dashed #ddd;text-align:center;margin:20px 0;padding:20px 0"><h2 style="margin:0;font-size:24px">${escape(receipt.customerName)}</h2><p style="margin:6px 0 0;color:#777">${escape(number)}</p></div>
   <table width="100%" cellspacing="0" cellpadding="0" style="font-size:14px">${rows}</table>
   <table width="100%" role="presentation" style="margin:16px 0;font-size:14px"><tr><td style="padding:5px 0">Бүтээгдэхүүний дүн</td><td align="right">${escape(won(receipt.subtotal))}</td></tr><tr><td style="padding:5px 0">Хүргэлтийн төлбөр</td><td align="right">${escape(won(receipt.shippingFee))}</td></tr><tr><td style="padding-top:14px;font-size:20px;font-weight:bold">Нийт төлөх</td><td align="right" style="padding-top:14px;font-size:24px;font-weight:bold;color:#e4002b">${escape(won(receipt.totalAmount))}</td></tr></table>
+  ${shippingDetail ? `<p style="font-size:12px;color:#777">${escape(shippingDetail)}</p>` : ''}
   <div style="margin-top:24px;padding:20px;border-radius:12px;background:#fff1f3;border:1px solid #ffd6dd"><h2 style="margin:0 0 16px;font-size:18px">Төлбөр шилжүүлэх данс</h2>${payment}<p style="margin:16px 0 0;font-size:13px">Шилжүүлэх дүн: <b>${escape(won(receipt.totalAmount))}</b><br>Шилжүүлэгчийн нэр: <b>${escape(receipt.transferAccountHolder)}</b><br>Гүйлгээний утга: <b>${escape(number)}</b></p></div>
   <p style="font-size:13px;line-height:1.6;color:#555">Төлбөрөө шилжүүлсний дараа захиалгыг баталгаажуулж бэлтгэнэ. Энэ имэйл нь төлбөр төлөгдсөнийг батлах баримт биш болно.</p>
   <div style="border-top:2px dashed #ddd;padding-top:18px;font-size:14px;line-height:1.7"><b>Хүргэлтийн мэдээлэл</b><br>${escape(receipt.customerName)} · ${escape(receipt.customerPhone)}<br>${escape(receipt.customerAddress).replace(/\n/g, '<br>')}</div>
@@ -30,7 +33,7 @@ export function renderOrderEmail(id: number, receipt: OrderEmailReceipt, origin:
   <p style="text-align:center;font-size:12px;color:#777;line-height:1.7">Асуух зүйл байвал энэ имэйлд хариу илгээнэ үү.<br><a href="mailto:${SUPPORT}" style="color:#777">${SUPPORT}</a><br>Meat Mall · 010-8082-9929</p>
   </td></tr></table></td></tr></table></body></html>`;
   const text = `${subject}\n${receipt.customerName}\n${date} (KST)\n\n${receipt.items.map(i => `${i.name} · ${i.quantity} кг · ${won(i.amount)}`).join('\n')}\nБүтээгдэхүүн: ${won(receipt.subtotal)}\nХүргэлт: ${won(receipt.shippingFee)}\nНийт төлөх: ${won(receipt.totalAmount)}\n\nТөлбөр шилжүүлэх данс:\n${account ? `${account.bankName}\n${account.accountNumber}\nДанс эзэмшигч: ${account.accountHolder}` : 'Дансны мэдээллийг дэлгүүрээс авна уу.'}\nШилжүүлэгчийн нэр: ${receipt.transferAccountHolder}\nГүйлгээний утга: ${number}\n\nХаяг: ${receipt.customerAddress}\nУтас: ${receipt.customerPhone}\nТөлбөр төлөгдсөнийг батлах баримт биш болно.\n${SUPPORT}`;
-  return { subject, html, text };
+  return { subject, html, text: shippingDetail ? text + '\n' + shippingDetail : text };
 }
 
 export function emailConfigured(env: Bindings) {

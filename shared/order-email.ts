@@ -9,6 +9,9 @@ export type OrderEmailReceipt = {
   items: { name: string; quantity: number; price: number; amount: number }[];
   subtotal: number;
   shippingFee: number;
+  shippingBaseFee?: number;
+  shippingSurcharge?: number;
+  shippingRegion?: 'mainland' | 'jeju';
   totalAmount: number;
   paymentAccount: PaymentAccountSnapshot | null;
 };

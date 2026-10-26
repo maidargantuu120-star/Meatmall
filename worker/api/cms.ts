@@ -3,6 +3,7 @@ import { Bindings } from '../types';
 import { requireAdmin } from '../middleware';
 import { UserWithNullablePhone } from '@shared/schema';
 import { D1Storage, IStorage } from '../storage';
+import { readShippingRates, serializeShippingRates, shippingRatesSchema } from '../../shared/shipping';
 
 type Env = {
     Bindings: Bindings;
@@ -196,19 +197,20 @@ app.get('/settings/shipping-fee', async (c) => {
     const storage = c.get('storage');
     const setting = await storage.getSiteSettingByKey('shipping_fee');
 
-    if (!setting) {
-        return c.json({ value: "0" }); // Default to 0 if not set
-    }
-
-    return c.json({ value: setting.value });
+    c.header('Cache-Control', 'no-store');
+    return c.json({ value: serializeShippingRates(readShippingRates(setting?.value)) });
 });
 
 app.put('/settings/shipping-fee', requireAdmin, async (c) => {
     const storage = c.get('storage');
     const body = await c.req.json();
-    const { value } = body;
-
     const existing = await storage.getSiteSettingByKey('shipping_fee');
+    let incoming;
+    try { incoming = JSON.parse(body.value); } catch { return c.json({ message: 'Invalid shipping settings' }, 400); }
+    const current = readShippingRates(existing?.value);
+    const parsed = shippingRatesSchema.safeParse({ fee: incoming?.[0]?.fee, jejuSurcharge: incoming?.[0]?.jejuSurcharge ?? current.jejuSurcharge });
+    if (!parsed.success) return c.json({ message: 'Shipping fees must be non-negative whole won amounts' }, 400);
+    const value = serializeShippingRates(parsed.data);
 
     if (existing) {
         await storage.updateSiteSettingByKey('shipping_fee', value);
