@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { Fragment, useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -11,7 +11,8 @@ import { Input } from "@/components/ui/input";
 import { OrderStatusBadge } from "@/components/admin/order-status-badge";
 import { cn, formatOrderId, formatPrice, formatDate, normalizeDate } from "@/lib/utils";
 import { OrderReceipt, STATUS_LABELS } from "@/components/admin/order-receipt";
-import { ReceiptText } from "lucide-react";
+import { ChevronDown, ReceiptText, X } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { ORDER_STATUSES } from "@/lib/constants";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
@@ -197,8 +198,25 @@ export default function AdminOrders() {
     return true;
   });
 
-  // Open order details
+  // Phones open the receipt in a dialog; PC expands it inline under the order's table row
+  const isMobile = useIsMobile();
+  const inlineOpenId = !isMobile && orderDetailsOpen ? selectedOrderId : null;
+
+  // Bring the expanded receipt into view (also when opened from a ?id= link)
+  useEffect(() => {
+    if (inlineOpenId == null) return;
+    const timer = setTimeout(() => {
+      document.getElementById(`order-row-${inlineOpenId}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
+    return () => clearTimeout(timer);
+  }, [inlineOpenId]);
+
+  // Open order details ("Харах" on an already expanded PC row collapses it)
   const handleViewOrder = (orderId: number) => {
+    if (inlineOpenId === orderId) {
+      handleCloseDetails();
+      return;
+    }
     setSelectedOrderId(orderId);
     setOrderDetailsOpen(true);
 
@@ -525,7 +543,11 @@ export default function AdminOrders() {
                       </tr>
                     ) : (
                       filteredOrders.map((order) => (
-                        <tr key={order.id}>
+                        <Fragment key={order.id}>
+                        <tr
+                          id={`order-row-${order.id}`}
+                          className={cn("scroll-mt-20", inlineOpenId === order.id && "bg-brand/5")}
+                        >
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             {formatOrderId(order.id)}
                           </td>
@@ -570,10 +592,15 @@ export default function AdminOrders() {
                             <div className="flex items-center gap-2">
                               <Button
                                 variant="ghost"
-                                className="text-primary hover:text-primary-dark"
+                                className="gap-1 text-primary hover:text-primary-dark"
                                 onClick={() => handleViewOrder(order.id)}
+                                aria-expanded={inlineOpenId === order.id}
+                                aria-controls={`order-receipt-${order.id}`}
                               >
-                                Харах
+                                {inlineOpenId === order.id ? "Хаах" : "Харах"}
+                                <ChevronDown
+                                  className={cn("transition-transform duration-200", inlineOpenId === order.id && "rotate-180")}
+                                />
                               </Button>
                               <Button
                                 variant="ghost"
@@ -587,6 +614,38 @@ export default function AdminOrders() {
                             </div>
                           </td>
                         </tr>
+                        {/* PC: the e-receipt opens inside the list, right under its order */}
+                        {inlineOpenId === order.id && (
+                          <tr id={`order-receipt-${order.id}`}>
+                            <td colSpan={7} className="border-l-4 border-brand bg-surface p-0">
+                              <div className="flex items-center justify-between border-b border-ink/10 bg-white px-6 py-3">
+                                <p className="font-display text-base font-extrabold text-ink">
+                                  Цахим баримт · {formatOrderId(order.id)}
+                                </p>
+                                <button
+                                  type="button"
+                                  onClick={handleCloseDetails}
+                                  aria-label="Хаах"
+                                  className="flex h-8 w-8 items-center justify-center rounded-full text-ink/50 transition-colors hover:bg-ink/5 hover:text-ink"
+                                >
+                                  <X className="h-4 w-4" />
+                                </button>
+                              </div>
+                              <OrderReceipt
+                                order={order}
+                                onSms={() => {
+                                  setSmsOrder(order);
+                                  setSmsDialogOpen(true);
+                                }}
+                                onDelete={() => {
+                                  handleCloseDetails();
+                                  setOrderToDelete(order);
+                                }}
+                              />
+                            </td>
+                          </tr>
+                        )}
+                        </Fragment>
                       ))
                     )}
                   </tbody>
@@ -604,9 +663,9 @@ export default function AdminOrders() {
             </div>
           </Card>
 
-          {/* Order details as an e-receipt (phone and PC) */}
+          {/* Phones: order details as an e-receipt dialog (PC shows it inline in the table) */}
           <Dialog
-            open={orderDetailsOpen}
+            open={orderDetailsOpen && isMobile}
             onOpenChange={(open) => (open ? setOrderDetailsOpen(true) : handleCloseDetails())}
           >
             <DialogContent className="scrollbar-hide max-h-[92vh] w-[calc(100vw-24px)] max-w-md gap-0 overflow-y-auto rounded-2xl p-0">
