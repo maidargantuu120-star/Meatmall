@@ -82,6 +82,13 @@ session. Do not treat reaching the Google account chooser as successful login.
 
 ## Administrator password changes
 
+The storefront and administrator pages share one session. An administrator signed
+in by Google or the ordinary password form can use the footer's admin link to
+open `/admin` directly. `/admin/login` also redirects signed-in administrators
+to the dashboard. Members without the administrator role remain blocked and see
+an explanation on the admin login screen, which also offers Google sign-in.
+The admin logout button calls the shared `/api/logout` endpoint.
+
 Signed-in administrators can open `/admin/security` (sidebar: `Нууц үг солих`)
 and enter their current password, a new 12–128 character password, and its
 confirmation. The change is immediate and does not require a deployment or any

@@ -37,7 +37,7 @@ export function AdminSidebar() {
 
   const handleLogout = async () => {
     try {
-      await apiRequest("POST", "/api/admin/logout", {});
+      await apiRequest("POST", "/api/logout", {});
     } catch (error) {
       // 서버 호출이 실패해도 로컬 세션은 정리한다
       console.error("Admin logout API error:", error);

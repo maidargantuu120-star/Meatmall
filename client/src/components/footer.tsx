@@ -11,6 +11,7 @@ import {
 import { useLanguage } from "../contexts/language-context";
 import { BRAND, telHref } from "@/lib/brand";
 import { BrandLogo } from "@/components/brand-logo";
+import { useAuth } from "@/hooks/use-auth";
 
 // Define a type for our footer settings data
 interface FooterSettings {
@@ -73,6 +74,7 @@ export function useFooterSettings() {
 }
 
 export function Footer() {
+  const { user } = useAuth();
   const { t } = useLanguage();
   const currentYear = new Date().getFullYear();
 
@@ -251,12 +253,12 @@ export function Footer() {
               </span>
             </Link>
             <span className="text-white/20">|</span>
-            <Link href="/admin/login">
+            <Link href={user?.isAdmin ? "/admin" : "/admin/login"}>
               <div className="inline-flex items-center hover:text-white transition-colors duration-200">
                 <span className="material-icons text-xs mr-1">
                   admin_panel_settings
                 </span>
-                <span>{t.adminLogin}</span>
+                <span>{user?.isAdmin ? "Админ удирдлага" : t.adminLogin}</span>
               </div>
             </Link>
           </div>

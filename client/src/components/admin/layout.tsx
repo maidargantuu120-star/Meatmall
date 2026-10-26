@@ -1,49 +1,19 @@
-import React, { ReactNode, useEffect } from "react";
-import { useLocation } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import { ReactNode } from "react";
+import { Redirect } from "wouter";
 import { AdminSidebar } from "./sidebar";
-import { apiRequest } from "@/lib/queryClient";
+import { useAuth } from "@/hooks/use-auth";
+import { LoadingScreen } from "@/components/ui/loading-screen";
 
 interface AdminLayoutProps {
   children: ReactNode;
 }
 
 export function AdminLayout({ children }: AdminLayoutProps) {
-  const [location] = useLocation();
-  const [, setLocation] = useLocation();
-
-  // Check if user is authenticated
-  const { data, isLoading } = useQuery({
-    queryKey: ["/api/admin/check-auth"],
-    queryFn: async () => {
-      const response = await apiRequest("GET", "/api/admin/check-auth");
-      return response as { authenticated: boolean };
-    },
-  });
-
-  useEffect(() => {
-    if (data && !data.authenticated && !location.includes("/admin/login")) {
-      setLocation("/admin/login");
-    }
-  }, [data, location, setLocation]);
-
-  // Early return for loading state MUST come after all use* hook declarations
-  if (isLoading && !location.includes("/admin/login")) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center">
-          <span className="material-icons text-brand text-4xl animate-spin">
-            settings
-          </span>
-          <p className="mt-2 text-muted-foreground">Ачааллаж байна...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (data && !data.authenticated && !location.includes("/admin/login")) {
-    return null;
-  }
+  const { user, isLoading } = useAuth();
+  // Reuse the storefront identity instead of a second cached authentication
+  // result. Protected APIs independently enforce the administrator role.
+  if (isLoading) return <LoadingScreen text="Нэвтрэх эрхийг шалгаж байна..." />;
+  if (!user?.isAdmin) return <Redirect to="/admin/login?redirect=true" />;
 
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-surface relative">

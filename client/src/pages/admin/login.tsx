@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useLocation } from "wouter";
+import { Redirect, useLocation } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -19,6 +19,9 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BrandLogo } from "@/components/brand-logo";
+import { useAuth } from "@/hooks/use-auth";
+import { LoadingScreen } from "@/components/ui/loading-screen";
+import { loginWithGoogle } from "@/lib/native-auth";
 
 // Login form schema
 const loginFormSchema = z.object({
@@ -33,6 +36,7 @@ const loginFormSchema = z.object({
 type LoginFormValues = z.infer<typeof loginFormSchema>;
 
 export default function AdminLogin() {
+  const { user: currentUser, isLoading: checkingSession } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [location, setLocation] = useLocation();
   const { toast } = useToast();
@@ -110,10 +114,7 @@ export default function AdminLogin() {
         logMobileCookieDebug();
       }
 
-      // Wait for session to be properly set
-      setTimeout(() => {
-        setLocation("/admin");
-      }, 500);
+      setLocation("/admin");
     } catch (error: any) {
       console.error("Login error:", error);
       toast({
@@ -124,6 +125,10 @@ export default function AdminLogin() {
       setIsLoading(false);
     }
   };
+
+  // Storefront and admin share one session, including bookmarked login URLs.
+  if (checkingSession) return <LoadingScreen text="Нэвтрэх эрхийг шалгаж байна..." />;
+  if (currentUser?.isAdmin) return <Redirect to="/admin" />;
 
   return (
     <div className="min-h-screen bg-surface flex items-center justify-center p-4">
@@ -144,6 +149,11 @@ export default function AdminLogin() {
                 Үйлдэл хийхийн тулд эхлээд нэвтэрнэ үү.
               </div>
             )}
+            {currentUser && !currentUser.isAdmin && (
+              <p className="text-sm text-amber-800 bg-amber-50 rounded p-3" role="status">
+                Энэ бүртгэл админ эрхгүй байна. Админ бүртгэлээрээ нэвтэрнэ үү.
+              </p>
+            )}
           </CardHeader>
           <CardContent>
             <Form {...form}>
@@ -156,9 +166,9 @@ export default function AdminLogin() {
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>И-мэйл</FormLabel>
+                      <FormLabel>И-мэйл эсвэл хэрэглэгчийн нэр</FormLabel>
                       <FormControl>
-                        <Input placeholder="maidargantuu120@gmail.com" {...field} />
+                        <Input autoComplete="username" placeholder="И-мэйл эсвэл хэрэглэгчийн нэр" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -174,6 +184,7 @@ export default function AdminLogin() {
                       <FormControl>
                         <Input
                           type="password"
+                          autoComplete="current-password"
                           placeholder="••••••••"
                           {...field}
                         />
@@ -196,6 +207,10 @@ export default function AdminLogin() {
                   ) : (
                     "Нэвтрэх"
                   )}
+                </Button>
+
+                <Button type="button" variant="outline" className="w-full h-11" onClick={() => loginWithGoogle()} disabled={isLoading}>
+                  Google-ээр нэвтрэх
                 </Button>
 
                 {/* Local development only: admin login without the production password */}
