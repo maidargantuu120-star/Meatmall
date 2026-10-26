@@ -42,9 +42,6 @@ export async function apiRequest(
     }
 
     console.log(`API Request: ${method} ${url}`);
-    if (requestData) {
-      console.log("Request data:", requestData);
-    }
 
     const isFormData = requestData instanceof FormData;
     const headers: Record<string, string> = requestData && !isFormData
@@ -80,7 +77,6 @@ export async function apiRequest(
       mode: "cors",
     };
 
-    console.log("Sending fetch request with options:", options);
     const res = await fetch(url, options);
     console.log(`Response status: ${res.status}`);
 
@@ -104,7 +100,6 @@ export async function apiRequest(
       // If it's JSON, parse it as JSON
       try {
         const jsonResponse = await res.json();
-        console.log("Response data:", jsonResponse);
         return jsonResponse;
       } catch (parseError) {
         console.error("Error parsing JSON response:", parseError);

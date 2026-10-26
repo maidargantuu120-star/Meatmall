@@ -1,5 +1,6 @@
 import { createMiddleware } from 'hono/factory';
-import { getSignedCookie } from 'hono/cookie';
+import { getCookie, getSignedCookie } from 'hono/cookie';
+import { sessionSigningSecret } from './utils';
 import { verifyToken } from './token';
 import { Bindings } from './types';
 import { User, UserWithNullablePhone } from '@shared/schema';
@@ -37,12 +38,19 @@ export const authMiddleware = createMiddleware<Env>(async (c, next) => {
     // 1) 네이티브 앱/웹 공통: Authorization: Bearer <token>
     const authHeader = c.req.header('Authorization');
     if (authHeader && authHeader.startsWith('Bearer ')) {
-        userId = await verifyToken(authHeader.slice(7), sessionSecret);
+        const token = authHeader.slice(7);
+        const candidateId = /^[1-9]\d*\./.test(token) ? Number(token.split('.')[0]) : NaN;
+        const candidate = Number.isSafeInteger(candidateId) ? await storage.getUser(candidateId) : undefined;
+        if (candidate) userId = await verifyToken(token, sessionSigningSecret(sessionSecret, candidate.password));
     }
 
     // 2) 웹: 서명된 세션 쿠키 (폴백). 앱(isAppClient)에서는 쿠키 무시.
     if (userId === null && !isAppClient) {
-        const userIdCookie = await getSignedCookie(c, sessionSecret, 'auth_user_id');
+        const rawCookie = getCookie(c, 'auth_user_id') || '';
+        const candidateId = /^[1-9]\d*\./.test(rawCookie) ? Number(rawCookie.split('.')[0]) : NaN;
+        const candidate = Number.isSafeInteger(candidateId) ? await storage.getUser(candidateId) : undefined;
+        const userIdCookie = candidate
+            ? await getSignedCookie(c, sessionSigningSecret(sessionSecret, candidate.password), 'auth_user_id') : undefined;
         if (userIdCookie) {
             const parsed = parseInt(userIdCookie);
             if (!isNaN(parsed)) userId = parsed;

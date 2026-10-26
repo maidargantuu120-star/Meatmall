@@ -3,7 +3,9 @@ import { setSignedCookie, deleteCookie } from 'hono/cookie';
 import { Bindings } from '../types';
 import { UserWithNullablePhone } from '@shared/schema';
 import { D1Storage, IStorage } from '../storage';
-import { hashPassword, comparePasswords } from '../utils';
+import { hashPassword, comparePasswords, ADMIN_PASSWORD_PREFIX, isManagedAdminPassword, sessionSigningSecret } from '../utils';
+import { requireAdmin } from '../middleware';
+import { adminPasswordChangeSchema } from '../../shared/admin-password';
 import { signToken } from '../token';
 import { beginGoogleOAuth, consumeGoogleOAuth, googleAuthOrigin } from '../google-oauth';
 // import { sendWelcomeEmail } from '../../server/email'; // Removed currently incompatible import
@@ -23,7 +25,9 @@ const app = new Hono<Env>();
 
 // Helper to set session cookie
 async function setUserSession(c: any, userId: number) {
-    const secret = c.env.SESSION_SECRET;
+    const user = await c.get('storage').getUser(userId);
+    if (!user) throw new Error('Session user missing');
+    const secret = sessionSigningSecret(c.env.SESSION_SECRET, user.password);
     const isSecure = c.req.url.startsWith("https://");
     // 네이티브 앱(origin https://localhost)에서 보낸 cross-site 요청에도 쿠키가 전송되도록
     // HTTPS에서는 SameSite=None을 사용. (None은 반드시 Secure 필요 → HTTPS 전제)
@@ -86,15 +90,12 @@ app.post('/login', async (c) => {
             return c.json({
                 success: false,
                 message: "Invalid password",
-                debug: {
-                    storedHashPrefix: user.password.substring(0, 15)
-                }
             }, 401);
         }
 
         // Set session (cookie for web) + token (for native app)
         await setUserSession(c, user.id);
-        const token = await signToken(user.id, c.env.SESSION_SECRET);
+        const token = await signToken(user.id, sessionSigningSecret(c.env.SESSION_SECRET, user.password));
 
         // Return user without password + auth token
         const { password: _, ...userWithoutPassword } = user as UserWithNullablePhone;
@@ -123,7 +124,7 @@ app.post('/admin/login', async (c) => {
 
         console.log(`[Admin Login] Attempt for username: ${username}`);
 
-        if (!username || !password) {
+        if (typeof username !== 'string' || typeof password !== 'string' || !username || !password) {
             return c.json({ success: false, message: "Username and password are required" }, 400);
         }
 
@@ -137,7 +138,9 @@ app.post('/admin/login', async (c) => {
         // No built-in fallback password: without ADMIN_PASSWORD set, this shortcut is off
         const envAdminPassword = c.env.ADMIN_PASSWORD;
 
-        if (envAdminPassword && username === envAdminUsername && password === envAdminPassword) {
+        const bootstrapMatches = envAdminPassword && username === envAdminUsername
+            && password === envAdminPassword && (!user || (user.isAdmin && !isManagedAdminPassword(user.password)));
+        if (bootstrapMatches) {
             // Environment variables matched!
             if (!user) {
                 // Auto-create in DB if doesn't exist so session works
@@ -149,12 +152,6 @@ app.post('/admin/login', async (c) => {
                 if (!user) {
                     return c.json({ success: false, message: "Could not create admin user" }, 500);
                 }
-            } else if (!user.isAdmin) {
-                // Ensure they are admin in DB
-                await c.env.DB.prepare(
-                    "UPDATE users SET is_admin = 1 WHERE id = ?"
-                ).bind(user.id).run();
-                user.isAdmin = true;
             }
         } else {
             if (!user) {
@@ -186,7 +183,7 @@ app.post('/admin/login', async (c) => {
 
         // Set session (cookie for web) + token (for native app)
         await setUserSession(c, user.id);
-        const token = await signToken(user.id, c.env.SESSION_SECRET);
+        const token = await signToken(user.id, sessionSigningSecret(c.env.SESSION_SECRET, user.password));
 
         // Return user without password + auth token
         const { password: _, ...userWithoutPassword } = user as UserWithNullablePhone;
@@ -199,6 +196,37 @@ app.post('/admin/login', async (c) => {
             error: error.message
         }, 500);
     }
+});
+
+app.post('/admin/change-password', requireAdmin, async (c) => {
+    c.header('Cache-Control', 'no-store');
+    if (c.req.header('Origin') !== new URL(c.req.url).origin
+        || c.req.header('Sec-Fetch-Site') === 'cross-site') {
+        return c.json({ message: 'Origin not allowed' }, 403);
+    }
+    if (c.req.header('Content-Type')?.split(';')[0].trim() !== 'application/json') {
+        return c.json({ message: 'JSON request required' }, 415);
+    }
+    const parsed = adminPasswordChangeSchema.safeParse(await c.req.json().catch(() => null));
+    if (!parsed.success) return c.json({ message: 'Нууц үгийн мэдээллийг шалгана уу.', errors: parsed.error.flatten().fieldErrors }, 400);
+    const user = c.get('user')!;
+    const { currentPassword, newPassword } = parsed.data;
+    const bootstrapMatches = !isManagedAdminPassword(user.password)
+        && user.username === (c.env.ADMIN_USERNAME || 'admin')
+        && !!c.env.ADMIN_PASSWORD && currentPassword === c.env.ADMIN_PASSWORD;
+    if (!bootstrapMatches && !await comparePasswords(currentPassword, user.password)) {
+        return c.json({ message: 'Одоогийн нууц үг буруу байна.' }, 400);
+    }
+    const newHash = ADMIN_PASSWORD_PREFIX + await hashPassword(newPassword);
+    const result = await c.env.DB.prepare(
+        'UPDATE users SET password = ? WHERE id = ? AND password = ? AND is_admin = 1',
+    ).bind(newHash, user.id, user.password).run();
+    if (result.meta.changes !== 1) return c.json({ message: 'Мэдээлэл өөрчлөгдсөн байна. Дахин нэвтэрч оролдоно уу.' }, 409);
+    // Preserve this browser's session; all older cookies and bearer tokens are
+    // invalidated because managed admin sessions are bound to the password hash.
+    await setUserSession(c, user.id);
+    const token = await signToken(user.id, sessionSigningSecret(c.env.SESSION_SECRET, newHash));
+    return c.json({ success: true, token });
 });
 
 app.get('/admin/check-auth', (c) => {
@@ -244,7 +272,7 @@ app.post('/register', async (c) => {
 
     // Login (cookie for web) + token (for native app)
     await setUserSession(c, newUser.id);
-    const token = await signToken(newUser.id, c.env.SESSION_SECRET);
+    const token = await signToken(newUser.id, sessionSigningSecret(c.env.SESSION_SECRET, newUser.password));
 
     const { password: _, ...userWithoutPassword } = newUser as UserWithNullablePhone;
 
@@ -293,7 +321,7 @@ app.post('/dev/login', async (c) => {
     }
 
     await setUserSession(c, user.id);
-    const token = await signToken(user.id, c.env.SESSION_SECRET);
+    const token = await signToken(user.id, sessionSigningSecret(c.env.SESSION_SECRET, user.password));
     const { password: _, ...userWithoutPassword } = user as UserWithNullablePhone;
     return c.json({ ...userWithoutPassword, token });
 });
@@ -324,7 +352,7 @@ app.post('/dev/admin-login', async (c) => {
     }
 
     await setUserSession(c, user.id);
-    const token = await signToken(user.id, c.env.SESSION_SECRET);
+    const token = await signToken(user.id, sessionSigningSecret(c.env.SESSION_SECRET, user.password));
     const { password: _, ...userWithoutPassword } = user as UserWithNullablePhone;
     return c.json({ ...userWithoutPassword, token });
 });
@@ -463,7 +491,7 @@ app.get('/auth/google/callback', async (c) => {
             await setUserSession(c, user.id);
             if (isApp) {
                 // 앱: 토큰을 딥링크로 전달 → 앱이 받아서 저장
-                const token = await signToken(user.id, c.env.SESSION_SECRET);
+                const token = await signToken(user.id, sessionSigningSecret(c.env.SESSION_SECRET, user.password));
                 return c.redirect(`${APP_SCHEME}://auth?token=${encodeURIComponent(token)}`);
             }
             // Redirect to home or callback page on success

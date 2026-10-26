@@ -70,6 +70,7 @@ export function AdminSidebar() {
       label: "Банкны данс",
     },
     { path: "/admin/settings", icon: "settings", label: "Тохиргоо" },
+    { path: "/admin/security", icon: "lock", label: "Нууц үг солих" },
     // CMS sections
     // "Сайтын агуулга" 링크가 제거되었습니다
     {

@@ -80,6 +80,32 @@ disposable database. After deploying, test the site's Google button in a browser
 complete Google consent, and verify that the site returns to an authenticated
 session. Do not treat reaching the Google account chooser as successful login.
 
+## Administrator password changes
+
+Signed-in administrators can open `/admin/security` (sidebar: `Нууц үг солих`)
+and enter their current password, a new 12–128 character password, and its
+confirmation. The change is immediate and does not require a deployment or any
+Cloudflare secret update. The handler requires an administrator session, JSON,
+and a matching Origin. It updates only that user's password, with a conditional
+write to prevent concurrent changes from overwriting each other.
+
+The existing `users.password` column stores a salted PBKDF2 hash. An `admin-v1$`
+hash prefix marks an administrator-managed password, disabling the legacy
+`ADMIN_PASSWORD` fallback permanently for that account. Before the first change,
+an existing admin may use either their current DB password or the configured
+bootstrap password. No schema migration or account recreation is needed.
+Google account links, user IDs, roles, orders and all other data are preserved.
+
+After a change, the current browser receives a renewed session. Other existing
+cookies and bearer tokens are invalidated by binding managed admin sessions to
+the stored password hash. Google login continues to work. Do not delete or change
+`SESSION_SECRET` as part of this operation. The Cloudflare bootstrap secret may
+remain configured; it cannot override a password changed through this page.
+
+Validate with `npm run check`, `npm run build`,
+`node scripts/test-admin-password.mjs`, and `node scripts/test-google-oauth.mjs`.
+The tests use disposable local databases and never change production passwords.
+
 ## Search indexing
 
 The canonical storefront origin is `https://meatmall.kr`. The Pages worker

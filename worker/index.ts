@@ -86,7 +86,7 @@ app.use('/api/*', async (c, next) => {
     if (['POST', 'PUT', 'PATCH'].includes(c.req.method)) {
         const contentType = c.req.header('content-type') || '';
         const body = contentType.includes('application/json')
-            ? await c.req.json()
+            ? await c.req.json().catch(() => null)
             : contentType.includes('multipart/form-data') ? await c.req.parseBody() : null;
         if (containsInlineImage(body)) {
             return c.json({ message: 'Inline images are not allowed. Upload a WebP file and save its URL.' }, 400);

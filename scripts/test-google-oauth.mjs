@@ -79,6 +79,17 @@ try {
   assert.equal(user.isAdmin, false);
   assert.ok(!('password' in user));
 
+  // Google login must continue to work after this admin changes their password.
+  const stored = await db.prepare('SELECT password FROM users WHERE id = ?').bind(user.id).first();
+  await db.prepare('UPDATE users SET password = ?, is_admin = 1 WHERE id = ?').bind('admin-v1$' + stored.password, user.id).run();
+  const managedAdmin = await begin();
+  mockGoogle();
+  response = await request(`/api/auth/google/callback?code=managed-admin&state=${managedAdmin.state}`, { headers: { cookie: managedAdmin.cookie } });
+  assert.equal(response.headers.get('location'), '/');
+  const managedUser = await (await request('/api/user', { headers: { cookie: cookies(response) } })).json();
+  assert.equal(managedUser.id, user.id);
+  assert.equal(managedUser.isAdmin, true);
+
   const unverified = await begin();
   mockGoogle({ sub: 'unverified-sub', email: 'unverified@example.invalid', verified: false });
   response = await request(`/api/auth/google/callback?code=unverified&state=${unverified.state}`, { headers: { cookie: unverified.cookie } });

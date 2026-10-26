@@ -38,6 +38,7 @@ const AdminMedia = lazy(() => import("@/pages/admin/media"));
 const AdminCategories = lazy(() => import("@/pages/admin/categories"));
 const AdminBankAccounts = lazy(() => import("@/pages/admin/bank-accounts"));
 const AdminSettings = lazy(() => import("@/pages/admin/settings"));
+const AdminSecurity = lazy(() => import("@/pages/admin/security"));
 const AdminHeroSettings = lazy(() => import("@/pages/admin/hero-settings"));
 const AdminLogoSettings = lazy(() => import("@/pages/admin/logo-settings"));
 const AdminFooterSettings = lazy(() => import("@/pages/admin/footer-settings"));
@@ -204,6 +205,9 @@ function AppContent() {
             </Route>
             <Route path="/admin/settings">
               {() => <AdminRoute component={AdminSettings} />}
+            </Route>
+            <Route path="/admin/security">
+              {() => <AdminRoute component={AdminSecurity} />}
             </Route>
             <Route path="/admin/hero-settings">
               {() => <AdminRoute component={AdminHeroSettings} />}

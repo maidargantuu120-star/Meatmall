@@ -1,4 +1,11 @@
 
+// A versioned hash marks a password explicitly changed by its administrator.
+// That account must never fall back to the original Cloudflare bootstrap secret.
+export const ADMIN_PASSWORD_PREFIX = 'admin-v1$';
+export const isManagedAdminPassword = (hash: string) => hash.startsWith(ADMIN_PASSWORD_PREFIX);
+export const sessionSigningSecret = (secret: string, hash: string) =>
+    isManagedAdminPassword(hash) ? `${secret}|admin-password|${hash}` : secret;
+
 export async function hashPassword(password: string): Promise<string> {
     const encoder = new TextEncoder();
     const salt = crypto.getRandomValues(new Uint8Array(16));
@@ -35,6 +42,7 @@ export async function hashPassword(password: string): Promise<string> {
 
 export async function comparePasswords(supplied: string, stored: string): Promise<boolean> {
     try {
+        if (isManagedAdminPassword(stored)) stored = stored.slice(ADMIN_PASSWORD_PREFIX.length);
         if (!stored || !stored.includes('.')) return false;
 
         const [storedHash, storedSaltHex] = stored.split(".");
@@ -67,7 +75,10 @@ export async function comparePasswords(supplied: string, stored: string): Promis
         const exportedKey = await crypto.subtle.exportKey("raw", key);
         const derivedHashHex = Array.from(new Uint8Array(exportedKey)).map(b => b.toString(16).padStart(2, '0')).join('');
 
-        return derivedHashHex === storedHash;
+        if (derivedHashHex.length !== storedHash.length) return false;
+        let difference = 0;
+        for (let i = 0; i < derivedHashHex.length; i++) difference |= derivedHashHex.charCodeAt(i) ^ storedHash.charCodeAt(i);
+        return difference === 0;
     } catch (error) {
         console.error("Error comparing passwords:", error);
         return false;
