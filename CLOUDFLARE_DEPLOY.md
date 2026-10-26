@@ -22,6 +22,22 @@ Alternatively create a direct-upload Pages project and run
 Direct-upload projects cannot later switch to Git integration; use the Git-connected
 workflow above when automatic deployments are required.
 
+## Page loading after deployments
+
+HTML, `/sw.js`, `/app-recovery.js` and the web manifest use `no-store` for browser
+and CDN caches. Versioned assets retain their long cache lifetime. Missing
+`/assets/` files return an uncached 404, never the SPA HTML fallback.
+The independent recovery script loads before the module bundle and handles
+stale dynamic imports, including initial bundle failures. It refreshes the same
+URL at most once per minute, preserving session/local storage, the cart and login.
+Offline users or browsers blocking session storage get manual retry instead.
+The root error boundary shows a Mongolian recovery message without raw errors or
+destructive storage clearing. Other rendering bugs remain visible as recoverable
+errors; this does not hide API failures or claim that all errors are preventable.
+
+Validate with `node scripts/test-page-recovery.mjs` after typecheck/build, then
+check stale-chunk recovery and the fallback in a disposable local browser.
+
 ## Media
 
 Uploads are binary multipart files. The browser limits both image dimensions,

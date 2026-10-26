@@ -27,11 +27,11 @@ if ("serviceWorker" in navigator && !import.meta.env.VITE_API_BASE_URL) {
 }
 
 createRoot(document.getElementById("root")!).render(
-  <QueryClientProvider client={queryClient}>
-    <CartProvider>
-      <ErrorBoundary>
+  <ErrorBoundary>
+    <QueryClientProvider client={queryClient}>
+      <CartProvider>
         <App />
-      </ErrorBoundary>
-    </CartProvider>
-  </QueryClientProvider>,
+      </CartProvider>
+    </QueryClientProvider>
+  </ErrorBoundary>,
 );

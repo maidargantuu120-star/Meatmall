@@ -167,7 +167,19 @@ app.onError((err, c) => {
 // Serve static assets (React App)
 app.get('*', async (c) => {
     const response = await c.env.ASSETS.fetch(c.req.raw);
-    return rewritePageSeo(response, c.req.path);
+    const html = response.headers.get('Content-Type')?.includes('text/html');
+    // Pages' SPA fallback must never masquerade as a missing JavaScript chunk.
+    if (c.req.path.startsWith('/assets/') && (html || response.status >= 400)) {
+        return c.text('Asset not found', 404, { 'Cache-Control': 'no-store' });
+    }
+    const result = rewritePageSeo(response, c.req.path);
+    if (html || ['/sw.js', '/app-recovery.js', '/manifest.webmanifest'].includes(c.req.path)) {
+        const headers = new Headers(result.headers);
+        headers.set('Cache-Control', 'no-store');
+        headers.set('CDN-Cache-Control', 'no-store');
+        return new Response(result.body, { status: result.status, statusText: result.statusText, headers });
+    }
+    return result;
 });
 
 export default app;

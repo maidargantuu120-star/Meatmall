@@ -2,6 +2,7 @@ import React, { Component, ErrorInfo, ReactNode } from "react";
 import { AlertCircle } from "lucide-react";
 import { Button } from "./button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "./card";
+import { recoverPageLoad } from '@/lib/page-recovery';
 
 interface Props {
   children?: ReactNode;
@@ -27,15 +28,14 @@ export class ErrorBoundary extends Component<Props, State> {
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error("Uncaught error:", error, errorInfo);
     this.setState({ errorInfo });
+    recoverPageLoad(error);
   }
 
   private handleReload = () => {
     window.location.reload();
   };
 
-  private handleClearCache = () => {
-    localStorage.clear();
-    sessionStorage.clear();
+  private handleHome = () => {
     window.location.href = "/";
   };
 
@@ -47,26 +47,20 @@ export class ErrorBoundary extends Component<Props, State> {
             <CardHeader className="bg-red-50 border-b border-red-100 pb-4">
               <div className="flex items-center gap-2 text-red-700">
                 <AlertCircle className="h-6 w-6" />
-                <CardTitle>Something went wrong</CardTitle>
+                <CardTitle>Хуудас ачаалж чадсангүй</CardTitle>
               </div>
             </CardHeader>
             <CardContent className="pt-6">
               <p className="text-gray-600 mb-4">
-                An unexpected error occurred while rendering this page.
+                Хуудас ачаалахад алдаа гарлаа. Интернэт холболтоо шалгаад дахин оролдоно уу.
               </p>
-              {this.state.error && (
-                <div className="bg-gray-100 p-3 rounded-md text-xs font-mono overflow-auto max-h-40 mb-4">
-                  <p className="font-bold mb-1">
-                    {this.state.error.name}: {this.state.error.message}
-                  </p>
-                </div>
-              )}
+              <p className="text-sm text-gray-500">Таны сагс болон нэвтрэх мэдээллийг устгахгүй.</p>
             </CardContent>
             <CardFooter className="flex gap-2 justify-end border-t pt-4">
-              <Button variant="outline" onClick={this.handleClearCache}>
-                Clear Cache & Reset
+              <Button variant="outline" onClick={this.handleHome}>
+                Нүүр хуудас
               </Button>
-              <Button onClick={this.handleReload}>Reload Page</Button>
+              <Button onClick={this.handleReload}>Дахин ачаалах</Button>
             </CardFooter>
           </Card>
         </div>
