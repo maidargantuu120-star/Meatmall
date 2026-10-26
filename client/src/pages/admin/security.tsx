@@ -9,10 +9,13 @@ import { AdminHeader } from '@/components/admin/header';
 import { Button, Card, CardContent, CardHeader, CardTitle, Input, Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui';
 import { setAuthToken } from '@/lib/auth-token';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/use-auth';
+import { AdminInvitations } from '@/components/admin/invitations';
 
 type PasswordForm = z.infer<typeof adminPasswordChangeSchema>;
 
 export default function AdminSecurity() {
+  const { user } = useAuth();
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -48,7 +51,17 @@ export default function AdminSecurity() {
   return (
     <AdminLayout>
       <div className="max-w-xl space-y-6">
-        <AdminHeader title="Нууц үг солих" />
+        <AdminHeader title="Админ бүртгэл" />
+        <Card>
+          <CardHeader><CardTitle>Таны нэвтрэх мэдээлэл</CardTitle></CardHeader>
+          <CardContent className="space-y-3 text-sm">
+            <p>И-мэйл: <strong className="break-all">{user?.email}</strong></p>
+            <p>Хэрэглэгчийн нэр: <strong>{user?.username}</strong></p>
+            <p className="text-muted-foreground">Доорх нууц үг солих хэсэг зөвхөн таны энэ бүртгэлд хамаарна. «admin» нь хэрэглэгчийн нэр болохоос нууц үг биш. Одоогийн нууц үгийг харах боломжгүй.</p>
+            <p className="text-muted-foreground">Өөр хүнд админ эрх өгөхдөө өөрийн бүртгэлийг дамжуулахын оронд доорх урилгыг ашиглана уу.</p>
+          </CardContent>
+        </Card>
+        <AdminInvitations />
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2"><LockKeyhole className="h-5 w-5" /> Админы нууц үг</CardTitle>

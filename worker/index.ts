@@ -16,6 +16,7 @@ import shopApp from './api/shop';
 import ordersApp from './api/orders';
 import cmsApp from './api/cms';
 import pushApp from './api/push';
+import adminInvitationsApp from './api/admin-invitations';
 
 import { IStorage } from './storage';
 
@@ -116,6 +117,7 @@ app.route('/api', shopApp); // shopApp mounts at root of /api (e.g. /api/categor
 app.route('/api', ordersApp); // ordersApp mounts at root of /api
 app.route('/api', cmsApp); // cmsApp mounts at root of /api
 app.route('/api', pushApp); // /api/push/*
+app.route('/api', adminInvitationsApp);
 
 app.get('/uploads/*', async (c) => {
     try {

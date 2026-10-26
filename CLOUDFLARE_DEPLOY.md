@@ -113,6 +113,34 @@ Validate with `npm run check`, `npm run build`,
 `node scripts/test-admin-password.mjs`, and `node scripts/test-google-oauth.mjs`.
 The tests use disposable local databases and never change production passwords.
 
+## Additional administrators
+
+The account page `/admin/security` shows the signed-in administrator's current
+email and username, and separates their password change from inviting a new
+operator. Only signed-in administrators may create or revoke invitations.
+Creating a new operator does not require sharing the original account's password
+or changing its email, Google link, role or session.
+
+An invitation is restricted to one normalized email, expires after 24 hours, and
+can be used once. D1 lazily creates `admin_invitations`, storing only a SHA-256
+digest of a cryptographically random 256-bit bearer token. The link carries its
+token in a fragment, never a request URL/query. The list API does not return
+tokens. Reissuing revokes older links for that email, and the creator can revoke
+pending invitations. Demoting the creator also makes their unused links invalid.
+
+Share the link privately with the intended operator; this feature does not send
+email automatically. `/admin/activate` lets that person choose their own name and
+12–128 character password, with no existing password required. Acceptance uses
+an atomic D1 batch to create a new administrator with a managed password hash and
+consume the invitation. It never promotes or overwrites an existing email account.
+The new operator signs in at `/admin/login` with that email and their own password.
+Origin and JSON guards protect create/revoke/inspect/accept requests.
+
+Validate with `node scripts/test-admin-invitations.mjs` after the normal typecheck
+and build. The test uses only disposable local accounts and covers authorization,
+origin/content-type rejection, expired/revoked/reused links, concurrent claims,
+duplicate email protection, new email/password login and original account preservation.
+
 ## Web push notifications
 
 Set production secrets `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` (a matching P-256
