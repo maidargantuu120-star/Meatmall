@@ -52,19 +52,11 @@ export default function AdminSecurity() {
     <AdminLayout>
       <div className="max-w-xl space-y-6">
         <AdminHeader title="Админ бүртгэл" />
-        <Card>
-          <CardHeader><CardTitle>Таны нэвтрэх мэдээлэл</CardTitle></CardHeader>
-          <CardContent className="space-y-3 text-sm">
-            <p>И-мэйл: <strong className="break-all">{user?.email}</strong></p>
-            <p>Хэрэглэгчийн нэр: <strong>{user?.username}</strong></p>
-            <p className="text-muted-foreground">Доорх нууц үг солих хэсэг зөвхөн таны энэ бүртгэлд хамаарна. «admin» нь хэрэглэгчийн нэр болохоос нууц үг биш. Одоогийн нууц үгийг харах боломжгүй.</p>
-            <p className="text-muted-foreground">Өөр хүнд админ эрх өгөхдөө өөрийн бүртгэлийг дамжуулахын оронд доорх урилгыг ашиглана уу.</p>
-          </CardContent>
-        </Card>
         <AdminInvitations />
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2"><LockKeyhole className="h-5 w-5" /> Админы нууц үг</CardTitle>
+            <p className="break-all text-sm text-muted-foreground">Нэвтэрсэн админ: {user?.email}</p>
             <p className="text-sm text-muted-foreground">Шинэ нууц үг хадгалмагц хүчинтэй болно. Бусад төхөөрөмжийн нэвтрэлт дуусна.</p>
           </CardHeader>
           <CardContent>
