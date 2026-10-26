@@ -5,6 +5,7 @@ import { UserWithNullablePhone } from '@shared/schema';
 import { D1Storage, IStorage } from '../storage';
 import { hashPassword, comparePasswords } from '../utils';
 import { signToken } from '../token';
+import { beginGoogleOAuth, consumeGoogleOAuth, googleAuthOrigin } from '../google-oauth';
 // import { sendWelcomeEmail } from '../../server/email'; // Removed currently incompatible import
 // validated: server/email uses nodemailer which uses 'net' etc. Might work with nodejs_compat.
 // If it fails, we'll need to stub it or use an email service API (MailChannels is standard for Cloudflare).
@@ -329,35 +330,38 @@ app.post('/dev/admin-login', async (c) => {
 });
 
 // --- Google OAuth Implementation ---
-app.get('/auth/google', (c) => {
+app.get('/auth/google', async (c) => {
     // Redirect to Google's OAuth consent screen
     const clientId = c.env.GOOGLE_CLIENT_ID;
-    if (!clientId) {
-        return c.json({ message: "Google Login is not configured. Please provide GOOGLE_CLIENT_ID." }, 501);
+    if (!clientId || !c.env.GOOGLE_CLIENT_SECRET) {
+        return c.json({ message: "Google Login is not configured." }, 501);
     }
 
-    // Usually domain is https://arvijix.kr for production
     const origin = (new URL(c.req.url)).origin;
-    const redirectUri = `${origin}/api/auth/google/callback`;
-
-    // 네이티브 앱은 ?client=app 으로 호출 → state로 전달해 콜백에서 딥링크로 복귀시킨다
-    const client = c.req.query('client');
+    const authOrigin = googleAuthOrigin(c.req.url);
+    if (origin !== authOrigin) {
+        const startUrl = new URL('/api/auth/google', authOrigin);
+        if (c.req.query('client') === 'app') startUrl.searchParams.set('client', 'app');
+        return c.redirect(startUrl.toString());
+    }
+    const state = await beginGoogleOAuth(c, c.env.SESSION_SECRET);
 
     const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
     authUrl.searchParams.append('client_id', clientId);
-    authUrl.searchParams.append('redirect_uri', redirectUri);
+    authUrl.searchParams.append('redirect_uri', state.redirectUri);
     authUrl.searchParams.append('response_type', 'code');
-    authUrl.searchParams.append('scope', 'email profile');
+    authUrl.searchParams.append('scope', 'openid email profile');
     authUrl.searchParams.append('access_type', 'online');
     authUrl.searchParams.append('prompt', 'select_account');
-    authUrl.searchParams.append('state', client === 'app' ? 'app' : 'web');
+    authUrl.searchParams.append('state', state.nonce);
 
     return c.redirect(authUrl.toString());
 });
 
 app.get('/auth/google/callback', async (c) => {
-    // 앱 플로우 여부 (auth/google에서 넣은 state). 앱이면 결과를 딥링크로 돌려준다.
-    const isApp = c.req.query('state') === 'app';
+    const state = await consumeGoogleOAuth(c, c.env.SESSION_SECRET);
+    if (!state) return c.redirect('/auth?error=invalid_oauth_state');
+    const isApp = state.client === 'app';
     const APP_SCHEME = 'mn.elbeg.meat';
     const fail = (reason: string) =>
         isApp
@@ -376,9 +380,7 @@ app.get('/auth/google/callback', async (c) => {
         const clientId = c.env.GOOGLE_CLIENT_ID;
         const clientSecret = c.env.GOOGLE_CLIENT_SECRET;
 
-        // Origin for redirect URI mismatch check
-        const origin = (new URL(c.req.url)).origin;
-        const redirectUri = `${origin}/api/auth/google/callback`;
+        const redirectUri = state.redirectUri;
 
         // 1. Exchange code for access token
         const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
@@ -396,33 +398,33 @@ app.get('/auth/google/callback', async (c) => {
         });
 
         if (!tokenResponse.ok) {
-            const errBody = await tokenResponse.text();
-            console.error("Failed to exchange token:", tokenResponse.status, errBody);
+            console.error("Failed to exchange Google token:", tokenResponse.status);
             return fail('token_exchange_failed');
         }
 
         const tokenData = await tokenResponse.json() as any;
 
         // 2. Get user profile from Google
-        const userResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+        const userResponse = await fetch('https://openidconnect.googleapis.com/v1/userinfo', {
             headers: {
                 Authorization: `Bearer ${tokenData.access_token}`,
             },
         });
 
         if (!userResponse.ok) {
-            console.error("Failed to fetch user profile:", await userResponse.text());
+            console.error("Failed to fetch Google profile:", userResponse.status);
             return fail('profile_fetch_failed');
         }
 
         const profile = await userResponse.json() as any;
         const email = profile.email;
-        const googleId = profile.id;
+        const googleId = profile.sub;
         const name = profile.name;
         // profile_image is not directly saved in our DB schema currently, but available as profile.picture
 
-        if (!email) {
-            return fail('no_email_provided');
+        if (typeof email !== 'string' || !email || typeof googleId !== 'string'
+            || !googleId || profile.email_verified !== true) {
+            return fail('verified_email_required');
         }
 
         const storage = c.get('storage');
@@ -434,6 +436,7 @@ app.get('/auth/google/callback', async (c) => {
             user = await storage.getUserByEmail(email);
 
             if (user) {
+                if (user.googleId && user.googleId !== googleId) return fail('google_account_mismatch');
                 // Link account
                 user = await storage.updateUserGoogleId(user.id, googleId);
             } else {

@@ -50,6 +50,36 @@ accounts. Add verified product inventory, business details, delivery fees and ba
 transfer details in the admin panel before accepting real orders.
 Google sign-in requires separate OAuth credentials for the final domain.
 
+## Google sign-in
+
+Use the `maidargantuu120@gmail.com` Google Cloud account and the dedicated
+Meatmall project. Configure an external OAuth app named `Meatmall` with the
+support/developer contact `maidargantuu120@gmail.com`, home page
+`https://meatmall.kr/`, privacy policy `https://meatmall.kr/privacy`, terms
+`https://meatmall.kr/terms`, and authorized domain `meatmall.kr`.
+
+Create a Web application client with authorized origins `https://meatmall.kr`
+and `https://www.meatmall.kr`, and the single redirect URI
+`https://meatmall.kr/api/auth/google/callback`. Only `openid`, `email` and
+`profile` are needed. Publish the app for external customers after checking the
+consent configuration. Billing and paid Google APIs are not needed for this flow.
+
+Store `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` as production secrets in
+Cloudflare Pages, and set `BASE_URL=https://meatmall.kr`. Never commit or display
+the client secret. Apply a new deployment after updating the production values.
+
+The login start endpoint moves alternate production hosts to the canonical
+domain before setting a short-lived signed HttpOnly state cookie. The callback
+checks that cookie and its expiry, consumes it, and accepts only a Google-verified
+email and subject. OAuth URLs and token-response bodies are excluded from logs.
+The next Capacitor build also uses `https://meatmall.kr` for API requests.
+
+Validate with `npm run check`, `npm run build`, then
+`node scripts/test-google-oauth.mjs`. This uses mocked Google endpoints and a
+disposable database. After deploying, test the site's Google button in a browser,
+complete Google consent, and verify that the site returns to an authenticated
+session. Do not treat reaching the Google account chooser as successful login.
+
 ## Search indexing
 
 The canonical storefront origin is `https://meatmall.kr`. The Pages worker

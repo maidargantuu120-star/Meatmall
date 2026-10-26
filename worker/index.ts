@@ -53,7 +53,16 @@ app.use('*', async (c, next) => {
 });
 
 // Global middleware
-app.use('*', logger());
+const requestLogger = logger();
+app.use('*', async (c, next) => {
+    if (c.req.path.startsWith('/api/auth/google')) {
+        c.header('Cache-Control', 'no-store');
+        c.header('Referrer-Policy', 'no-referrer');
+        await next(); // OAuth codes must not appear in request logs.
+    } else {
+        await requestLogger(c, next);
+    }
+});
 app.use('*', cors({
     origin: (origin, c) => {
         const allowed = [new URL(c.req.url).origin, c.env.BASE_URL, 'https://localhost', 'capacitor://localhost'];
