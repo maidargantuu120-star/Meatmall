@@ -5,17 +5,17 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
-import { CartItemComponent } from "@/components/ui/cart-item";
 import { useCart } from "@/hooks/use-cart";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { formatPrice } from "@/lib/utils";
+import { cn, formatPrice, isBulkyMeat } from "@/lib/utils";
+import { getFullImageUrl } from "@/lib/image-utils";
 import { useQuery } from "@tanstack/react-query";
 import { queryClient } from "../lib/queryClient";
 import { apiRequest } from "@/lib/queryClient";
 import { logger } from "@/lib/logger";
-import { Loader2, LogIn, UserCircle2 } from "lucide-react";
-import { insertOrderSchema, BankAccount } from "@shared/schema";
+import { Check, Copy, Loader2, Minus, Plus, ShoppingBag, Trash2 } from "lucide-react";
+import { BankAccount, CartItem } from "@shared/schema";
 import { useLanguage } from "@/contexts/language-context";
 import { readShippingRates, shippingQuote } from '@shared/shipping';
 import { AddressSearch } from '@/components/address-search';
@@ -30,13 +30,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
 // Extend the order schema for checkout form validation
 const checkoutFormSchema = z.object({
@@ -76,6 +69,29 @@ export default function Checkout() {
   const { t } = useLanguage();
   const [location, setLocation] = useLocation();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [accountCopied, setAccountCopied] = useState(false);
+  const [activeStep, setActiveStep] = useState(1);
+
+  // Step chips follow the scroll: "Төлбөр" once the payment card reaches the upper part of the screen
+  const hasCheckoutForm = !!user && items.length > 0;
+  useEffect(() => {
+    if (!hasCheckoutForm) return;
+    const update = () => {
+      const payment = document.getElementById(STEP_SECTION_IDS[2]);
+      if (!payment) return;
+      setActiveStep(payment.getBoundingClientRect().top < window.innerHeight * 0.45 ? 2 : 1);
+    };
+    update();
+    window.addEventListener("scroll", update, { passive: true });
+    return () => window.removeEventListener("scroll", update);
+  }, [hasCheckoutForm]);
+
+  const scrollToStep = (index: number) => {
+    const id = STEP_SECTION_IDS[index];
+    if (!id) return;
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    document.getElementById(id)?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+  };
 
   // 로그인 상태 확인 및 리다이렉트
   useEffect(() => {
@@ -288,21 +304,31 @@ export default function Checkout() {
     }
   };
 
+  // Selected (or default) account shown on the red account card
+  const selectedBankAccountId = form.watch("selectedBankAccount");
+  const activeBankAccount =
+    bankAccounts.find((account) => account?.id?.toString() === selectedBankAccountId) ||
+    defaultBankAccount ||
+    null;
+
+  const copyAccountNumber = async (accountNumber: string) => {
+    try {
+      await navigator.clipboard.writeText(accountNumber);
+      setAccountCopied(true);
+      setTimeout(() => setAccountCopied(false), 2000);
+    } catch {
+      // Clipboard blocked: the number stays visible and selectable
+    }
+  };
+
   // 로그인 중이거나 로그인 되지 않은 경우 로딩 화면 표시
   if (isAuthLoading || !user) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-surface">
         <Navbar />
-        <div className="w-full gradient-nav py-8 mb-8">
-          <div className="container mx-auto px-4">
-            <h1 className="text-3xl md:text-4xl font-bold text-white text-center">
-              Захиалга
-            </h1>
-            <div className="w-20 h-1 bg-white/50 mx-auto mt-4 rounded-full"></div>
-          </div>
-        </div>
-        <div className="flex items-center justify-center min-h-[50vh]">
-          <div className="animate-spin h-12 w-12 border-4 border-t-transparent border-brand rounded-full"></div>
+        <CheckoutHeader title={t.checkout} steps={t.checkoutPage.steps} />
+        <div className="flex min-h-[40vh] items-center justify-center">
+          <Loader2 className="h-10 w-10 animate-spin text-brand" />
         </div>
         <Footer />
       </div>
@@ -312,25 +338,21 @@ export default function Checkout() {
   // If cart is empty, redirect to home
   if (items.length === 0) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-surface">
         <Navbar />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="text-center py-10 bg-white rounded-xl shadow-sm">
-            <span className="material-icons text-5xl text-brand mb-4">
-              shopping_cart
+        <CheckoutHeader title={t.checkout} steps={t.checkoutPage.steps} />
+        <div className="mx-auto -mt-10 max-w-xl px-4 pb-16">
+          <div className={cn(CARD, "text-center")}>
+            <span className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-brand/10 text-brand">
+              <ShoppingBag className="h-8 w-8" />
             </span>
-            <h2 className="text-2xl font-bold text-foreground mb-4">
-              Сагс хоосон байна
-            </h2>
-            <p className="text-muted-foreground mb-6">
-              Захиалга хийхийн тулд сагсандаа бүтээгдэхүүн нэмнэ үү.
-            </p>
+            <h2 className="font-display text-xl font-extrabold text-ink">Сагс хоосон байна</h2>
+            <p className="mt-2 text-ink/60">Захиалга хийхийн тулд сагсандаа бүтээгдэхүүн нэмнэ үү.</p>
             <Button
               onClick={() => setLocation("/")}
-              className="bg-brand hover:brightness-105 text-white font-medium transition-all duration-300 shadow-sm hover:shadow-md"
+              className="mt-6 h-12 rounded-xl bg-brand px-6 font-display font-bold text-white hover:bg-brand-deep"
             >
               Бүтээгдэхүүн харах
-              <span className="material-icons ml-2">arrow_forward</span>
             </Button>
           </div>
         </div>
@@ -339,437 +361,457 @@ export default function Checkout() {
     );
   }
 
+  const fieldLabel = "font-bold text-ink";
+  const fieldInput = "h-12 rounded-xl border-ink/15 text-base placeholder:text-ink/35 focus-visible:ring-brand/30";
+  const required = <span className="ml-0.5 text-brand">*</span>;
+
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-surface">
       <Navbar />
+      <CheckoutHeader title={t.checkout} steps={t.checkoutPage.steps} activeStep={activeStep} onStep={scrollToStep} />
 
-      <section className="py-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl md:text-4xl font-bold text-brand inline-block mb-3">
-            {t.checkout}
-          </h1>
-          <div className="w-20 h-1 bg-brand mx-auto rounded-full"></div>
-        </div>
+      <main className="mx-auto -mt-10 max-w-6xl px-3 pb-16 sm:px-4 md:px-8">
+        <Form {...form}>
+          <form
+            onSubmit={form.handleSubmit(onSubmit)}
+            className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start lg:gap-6"
+          >
+            <div className="min-w-0 space-y-4">
+              {/* Cart */}
+              <section className={CARD}>
+                <div className="mb-4 flex items-center justify-between">
+                  <h2 className={CARD_TITLE}>{t.checkoutPage.yourCart}</h2>
+                  <span className="text-sm font-semibold text-ink/50">
+                    {items.length} {t.checkoutPage.itemsUnit}
+                  </span>
+                </div>
+                <ul className="divide-y divide-ink/10">
+                  {items.map((item) => (
+                    <CheckoutCartItem key={item.productId} item={item} />
+                  ))}
+                </ul>
+              </section>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Order Form */}
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-            <h2 className="text-xl font-bold mb-6 text-foreground">
-              {t.orderInfo}
-            </h2>
-
-            <Form {...form}>
-              <form
-                onSubmit={form.handleSubmit(onSubmit)}
-                className="space-y-6"
-              >
-                <FormField
-                  control={form.control}
-                  name="customerName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t.name}</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder={t.name}
-                          className="placeholder:text-gray-400"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Customer */}
+              <section id={STEP_SECTION_IDS[1]} className={cn(CARD, "scroll-mt-24")}>
+                <h2 className={cn(CARD_TITLE, "mb-5")}>{t.checkoutPage.customerInfo}</h2>
+                <div className="space-y-5">
                   <FormField
                     control={form.control}
-                    name="customerEmail"
+                    name="customerName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>{t.email}</FormLabel>
+                        <FormLabel className={fieldLabel}>{t.name}</FormLabel>
                         <FormControl>
-                          <Input
-                            placeholder="example@mail.com"
-                            className="placeholder:text-gray-400"
-                            {...field}
-                          />
+                          <Input placeholder={t.name} autoComplete="name" className={fieldInput} {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-
-                  <FormField
-                    control={form.control}
-                    name="customerPhone"
-                    render={({ field }) => {
-                      const formatPhoneNumber = (value: string) => {
-                        // Remove all non-digit characters
-                        const digits = value.replace(/\D/g, "");
-
-                        // Apply Korean phone number format (010-0000-0000)
-                        if (digits.length <= 3) {
-                          return digits;
-                        } else if (digits.length <= 7) {
-                          return `${digits.slice(0, 3)}-${digits.slice(3)}`;
-                        } else {
-                          return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7, 11)}`;
-                        }
-                      };
-
-                      return (
-                        <FormItem>
-                          <FormLabel>{t.phone}</FormLabel>
-                          <FormControl>
-                            <Input
-                              placeholder="010-0000-0000"
-                              className="placeholder:text-gray-400"
-                              {...field}
-                              value={field.value}
-                              onChange={(e) => {
-                                const formatted = formatPhoneNumber(
-                                  e.target.value,
-                                );
-                                field.onChange(formatted);
-                              }}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {t.phoneFormat}
-                          </p>
-                        </FormItem>
-                      );
-                    }}
-                  />
-                </div>
-
-                <FormField
-                  control={form.control}
-                  name="customerAddress"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t.address}</FormLabel>
-                      <AddressSearch onSelect={(address, postcode) => {
-                        form.setValue('customerAddress', address, { shouldValidate: true });
-                        form.setValue('customerPostalCode', postcode, { shouldValidate: true });
-                      }} />
-                      <FormControl>
-                        <Textarea
-                          placeholder="Та хот/дүүрэг хороо/ байрны тоотоо тодорхой солонгосоор бичиж оруулна уу."
-                          className="resize-none placeholder:text-gray-400"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                      <p className="text-xs text-muted-foreground">{t.shipping.hint}</p>
-                    </FormItem>
-                  )}
-                />
-
-                <FormField control={form.control} name="customerPostalCode" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t.shipping.postcode}</FormLabel>
-                    <FormControl><Input {...field} inputMode="numeric" autoComplete="postal-code" maxLength={5} placeholder="63122" /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-                {deliveryQuote?.mismatch && <p role="alert" className="text-sm text-destructive">{t.shipping.mismatch}</p>}
-                {deliveryQuote?.region === 'jeju' && <p role="status" className="rounded-lg bg-brand/5 p-3 text-sm text-brand">{t.shipping.detected}</p>}
-
-                <div className="space-y-4 rounded-lg p-5 border-2 border-blue-400/70 bg-white shadow-md">
-                  <div className="flex items-center bg-brand px-4 py-2 rounded-md -mt-2 -mx-1 shadow-sm">
-                    <span className="material-icons mr-2 text-xl text-white">
-                      account_balance
-                    </span>
-                    <h3 className="font-bold text-md text-white">
-                      {t.paymentInfo}
-                    </h3>
-                  </div>
-
-                  <FormField
-                    control={form.control}
-                    name="paymentMethod"
-                    render={({ field }) => (
-                      <FormItem className="hidden">
-                        <FormControl>
-                          <Input
-                            type="hidden"
-                            {...field}
-                            value="bank_transfer"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <div className="mb-6">
-                    <h3 className="text-lg font-bold text-brand inline-block mb-3">
-                      {t.bankTransfer}
-                    </h3>
-                    <p className="text-sm text-gray-600 mb-4">
-                      {t.bankTransferDesc}
-                    </p>
-
+                  <div className="grid gap-5 md:grid-cols-2">
                     <FormField
                       control={form.control}
-                      name="selectedBankAccount"
+                      name="customerEmail"
                       render={({ field }) => (
-                        <FormItem className="mb-4">
-                          <div className="flex items-center justify-between mb-2">
-                            <FormLabel className="text-gray-800 font-medium flex items-center">
-                              <span className="material-icons text-brand mr-1 text-lg">
-                                account_balance
-                              </span>
-                              {t.bank}
-                            </FormLabel>
-                            <span className="text-xs text-gray-500">
-                              {bankAccounts.length} {t.bank}
-                            </span>
-                          </div>
-                          <Select
-                            onValueChange={field.onChange}
-                            defaultValue={field.value}
-                            value={field.value}
-                          >
-                            <FormControl>
-                              <SelectTrigger className="bg-white border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-brand/20 focus:border-brand">
-                                <SelectValue placeholder={t.selectBank} />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent className="rounded-xl border-2 border-gray-200 shadow-lg bg-white">
-                              {isBankAccountsLoading ? (
-                                <div className="p-4 text-center">
-                                  <div className="h-4 w-24 bg-brand/10 animate-pulse rounded-full mx-auto mb-2"></div>
-                                  <div className="h-4 w-36 bg-brand/10 animate-pulse rounded-full mx-auto"></div>
-                                </div>
-                              ) : bankAccounts.length > 0 ? (
-                                bankAccounts
-                                  .filter((account) => account && account.id)
-                                  .map((account) => (
-                                    <SelectItem
-                                      key={account.id}
-                                      value={String(account.id || "")}
-                                      className="border-none focus:bg-violet-600 data-[state=checked]:bg-violet-600 data-[state=checked]:text-white text-gray-900 my-1 rounded-lg py-3"
-                                    >
-                                      <div className="flex items-center w-full">
-                                        <div className="w-8 h-8 rounded-full bg-violet-100 data-[state=checked]:bg-white/30 flex items-center justify-center mr-3">
-                                          <span className="material-icons text-base text-violet-600 data-[state=checked]:text-white">
-                                            account_balance
-                                          </span>
-                                        </div>
-                                        <div className="flex flex-col">
-                                          <span className="font-bold data-[state=checked]:text-white">
-                                            {account.bankName}
-                                          </span>
-                                          <span className="text-xs text-gray-600 data-[state=checked]:text-white/80">
-                                            {account.description}
-                                          </span>
-                                        </div>
-                                      </div>
-                                    </SelectItem>
-                                  ))
-                              ) : (
-                                <SelectItem
-                                  value="default"
-                                  className="py-3 font-medium"
-                                >
-                                  {t.defaultAccount}
-                                </SelectItem>
-                              )}
-                            </SelectContent>
-                          </Select>
+                        <FormItem>
+                          <FormLabel className={fieldLabel}>{t.email}</FormLabel>
+                          <FormControl>
+                            <Input placeholder="example@mail.com" type="email" autoComplete="email" className={fieldInput} {...field} />
+                          </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
-
-                    {/* Display selected bank account details */}
-                    {!isBankAccountsLoading && (
-                      <div className="rounded-xl overflow-hidden shadow-md bg-white border border-gray-100">
-                        {(() => {
-                          // Find selected bank account
-                          const selectedAccountId = form.watch(
-                            "selectedBankAccount",
-                          );
-                          const selectedAccount = bankAccounts.find(
-                            (account) =>
-                              account?.id?.toString() === selectedAccountId,
-                          );
-
-                          const accountData =
-                            selectedAccount || defaultBankAccount;
-
-                          if (accountData) {
-                            return (
-                              <>
-                                <div className="bg-brand p-3 text-white">
-                                  <div className="flex items-center justify-between">
-                                    <div className="flex items-center">
-                                      <span className="material-icons mr-2">
-                                        account_balance
-                                      </span>
-                                      <h4 className="font-bold">
-                                        {accountData.bankName}
-                                      </h4>
-                                    </div>
-                                    {accountData.isDefault && (
-                                      <span className="bg-white/20 text-white text-xs px-2 py-1 rounded-full">
-                                        {t.defaultAccount}
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                                <div className="p-4">
-                                  <div className="flex flex-col space-y-4">
-                                    <div className="flex items-center justify-between border-b border-dashed border-gray-200 pb-3">
-                                      <span className="text-gray-600 text-sm">
-                                        {t.accountNumber}
-                                      </span>
-                                      <span className="font-mono font-bold text-lg tracking-wider">
-                                        {accountData.accountNumber}
-                                      </span>
-                                    </div>
-                                    <div className="flex items-center justify-between border-b border-dashed border-gray-200 pb-3">
-                                      <span className="text-gray-600 text-sm">
-                                        {t.accountHolder}
-                                      </span>
-                                      <span className="font-bold">
-                                        {accountData.accountHolder}
-                                      </span>
-                                    </div>
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        navigator.clipboard.writeText(
-                                          accountData.accountNumber,
-                                        )
-                                      }
-                                      className="flex items-center justify-center py-2 px-4 rounded-lg bg-brand text-white hover:brightness-110 font-medium text-sm transition-all duration-300 shadow-sm hover:shadow-md mt-2"
-                                    >
-                                      <span className="material-icons text-sm mr-1">
-                                        content_copy
-                                      </span>
-                                      {t.copyAccountNumber}
-                                    </button>
-                                  </div>
-                                </div>
-                              </>
-                            );
-                          } else {
-                            return (
-                              <div className="p-6 text-center">
-                                <span className="material-icons text-amber-500 text-4xl mb-2">
-                                  warning
-                                </span>
-                                <p className="text-amber-600 font-medium">
-                                  {t.bankInfoNotFound}
-                                </p>
-                              </div>
-                            );
-                          }
-                        })()}
-                      </div>
-                    )}
+                    <FormField
+                      control={form.control}
+                      name="customerPhone"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className={fieldLabel}>
+                            {t.phone}
+                            {required}
+                          </FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="010-0000-0000"
+                              inputMode="tel"
+                              autoComplete="tel"
+                              className={fieldInput}
+                              {...field}
+                              value={field.value}
+                              onChange={(e) => field.onChange(formatPhoneNumber(e.target.value))}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                          <p className="text-[13px] text-ink/55">{t.phoneFormat}</p>
+                        </FormItem>
+                      )}
+                    />
                   </div>
+                </div>
+              </section>
 
+              {/* Delivery address */}
+              <section className={CARD}>
+                <h2 className={cn(CARD_TITLE, "mb-5")}>{t.checkoutPage.deliveryAddress}</h2>
+                <div className="space-y-5">
                   <FormField
                     control={form.control}
-                    name="transferAccountHolder"
+                    name="customerAddress"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-gray-800 font-medium">
-                          {t.transferSenderName}
-                        </FormLabel>
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <FormLabel className={fieldLabel}>
+                            {t.address}
+                            {required}
+                          </FormLabel>
+                          <AddressSearch
+                            buttonClassName="h-10 gap-1.5 rounded-full border-brand px-4 font-bold text-brand hover:bg-brand hover:text-white"
+                            onSelect={(address, postcode) => {
+                              form.setValue("customerAddress", address, { shouldValidate: true });
+                              form.setValue("customerPostalCode", postcode, { shouldValidate: true });
+                            }}
+                          />
+                        </div>
                         <FormControl>
-                          <Input
-                            placeholder={t.transferSenderNamePlaceholder}
+                          <Textarea
+                            placeholder="Та хот/дүүрэг хороо/ байрны тоотоо тодорхой солонгосоор бичиж оруулна уу."
+                            className="min-h-[96px] resize-none rounded-xl border-ink/15 text-base placeholder:text-ink/35 focus-visible:ring-brand/30"
+                            autoComplete="street-address"
                             {...field}
-                            className="border-2 border-gray-200 placeholder:text-gray-400"
                           />
                         </FormControl>
                         <FormMessage />
-                        <p className="text-xs text-gray-600 mt-1 font-medium">
-                          {t.transferSenderNameDesc}
-                        </p>
+                        <p className="text-[13px] text-ink/55">{t.shipping.hint}</p>
                       </FormItem>
                     )}
                   />
-                </div>
-
-                <Button
-                  type="submit"
-                  className="w-full bg-brand hover:brightness-105 text-white font-medium py-6 transition-all duration-300 shadow-sm hover:shadow-md"
-                  disabled={isSubmitting || isLoadingShippingFee || shippingError || !deliveryQuote || deliveryQuote.mismatch}
-                >
-                  {isSubmitting ? (
-                    <>
-                      <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></span>
-                      {t.processingPayment}
-                    </>
-                  ) : (
-                    <>
-                      {t.placeOrder}
-                      <span className="material-icons ml-2">shopping_bag</span>
-                    </>
+                  <FormField
+                    control={form.control}
+                    name="customerPostalCode"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className={fieldLabel}>{t.shipping.postcode}</FormLabel>
+                        <FormControl>
+                          <Input {...field} inputMode="numeric" autoComplete="postal-code" maxLength={5} placeholder="63122" className={fieldInput} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  {deliveryQuote?.mismatch && <p role="alert" className="text-sm text-destructive">{t.shipping.mismatch}</p>}
+                  {deliveryQuote?.region === "jeju" && (
+                    <p role="status" className="rounded-xl bg-brand/5 p-3 text-sm text-brand">{t.shipping.detected}</p>
                   )}
-                </Button>
-              </form>
-            </Form>
-          </div>
-
-          {/* Order Summary */}
-          <div>
-            <div className="bg-white rounded-xl shadow-sm p-6 mb-6 border border-gray-100">
-              <h2 className="text-xl font-bold mb-6 text-foreground">
-                {t.orderInfo}
-              </h2>
-
-              <div className="space-y-4 mb-6">
-                {items.map((item) => (
-                  <CartItemComponent key={item.productId} item={item} />
-                ))}
-              </div>
-
-              <div className="border-t border-gray-100 pt-4">
-                <div className="flex justify-between mb-2">
-                  <span className="font-medium text-foreground">
-                    {t.products}:
-                  </span>
-                  <span className="font-bold">{formatPrice(totalPrice)}</span>
                 </div>
-                <div className="flex justify-between mb-2">
-                  <span className="font-medium text-foreground">
-                    {t.shippingFee}:
-                  </span>
-                  <span className="font-bold">
+              </section>
+
+              {/* Payment: bank transfer */}
+              <section id={STEP_SECTION_IDS[2]} className={cn(CARD, "scroll-mt-24")}>
+                <h2 className={CARD_TITLE}>
+                  {t.checkoutPage.steps[2]} · {t.bankTransfer}
+                </h2>
+                <p className="mt-1 text-sm text-ink/60">{t.bankTransferDesc}</p>
+
+                <FormField
+                  control={form.control}
+                  name="paymentMethod"
+                  render={({ field }) => <input type="hidden" {...field} value="bank_transfer" />}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="selectedBankAccount"
+                  render={({ field }) => (
+                    <FormItem className="mt-5">
+                      <FormLabel className={fieldLabel}>{t.checkoutPage.selectBank}</FormLabel>
+                      {isBankAccountsLoading ? (
+                        <div className="h-14 animate-pulse rounded-xl bg-ink/5" />
+                      ) : bankAccounts.length > 0 ? (
+                        <div role="radiogroup" aria-label={t.checkoutPage.selectBank} className="space-y-2">
+                          {bankAccounts
+                            .filter((account) => account && account.id)
+                            .map((account) => {
+                              const checked = field.value === String(account.id);
+                              return (
+                                <button
+                                  key={account.id}
+                                  type="button"
+                                  role="radio"
+                                  aria-checked={checked}
+                                  onClick={() => field.onChange(String(account.id))}
+                                  className={cn(
+                                    "flex w-full items-center gap-3 rounded-xl border px-4 py-3.5 text-left transition-colors",
+                                    checked ? "border-brand bg-brand/5" : "border-ink/15 bg-white hover:border-ink/30",
+                                  )}
+                                >
+                                  <span
+                                    className={cn(
+                                      "flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border-2",
+                                      checked ? "border-brand" : "border-ink/25",
+                                    )}
+                                  >
+                                    {checked && <span className="h-2.5 w-2.5 rounded-full bg-brand" />}
+                                  </span>
+                                  <span className="min-w-0 flex-1">
+                                    <span className="block font-bold text-ink">{account.bankName}</span>
+                                    {account.description && (
+                                      <span className="block truncate text-xs text-ink/55">{account.description}</span>
+                                    )}
+                                  </span>
+                                </button>
+                              );
+                            })}
+                        </div>
+                      ) : null}
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Selected account: red card with a copy button */}
+                {!isBankAccountsLoading &&
+                  (activeBankAccount ? (
+                    <div className="mt-4 rounded-2xl bg-brand p-5 text-white shadow-card">
+                      <div className="flex items-start justify-between gap-3">
+                        <p className="min-w-0 font-bold">{activeBankAccount.bankName}</p>
+                        {activeBankAccount.isDefault && (
+                          <span className="flex-shrink-0 rounded-full bg-white/20 px-2.5 py-1 text-xs font-bold">
+                            {t.defaultAccount}
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-4 text-xs font-semibold text-white/75">{t.accountNumber}</p>
+                      <p className="mt-0.5 break-all font-display text-2xl font-extrabold tracking-wider sm:text-[28px]">
+                        {activeBankAccount.accountNumber}
+                      </p>
+                      <div className="mt-4 flex items-end justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold text-white/75">{t.accountHolder}</p>
+                          <p className="mt-0.5 break-words font-bold">{activeBankAccount.accountHolder}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => copyAccountNumber(activeBankAccount.accountNumber)}
+                          className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-brand shadow-sm transition-colors hover:bg-white/90"
+                        >
+                          {accountCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                          {accountCopied ? t.install.copied : t.copy}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="mt-4 rounded-xl bg-surface p-4 text-sm font-medium text-ink/60">{t.bankInfoNotFound}</p>
+                  ))}
+
+                <FormField
+                  control={form.control}
+                  name="transferAccountHolder"
+                  render={({ field }) => (
+                    <FormItem className="mt-5">
+                      <FormLabel className={fieldLabel}>{t.transferSenderName}</FormLabel>
+                      <FormControl>
+                        <Input placeholder={t.transferSenderNamePlaceholder} className={fieldInput} {...field} />
+                      </FormControl>
+                      <FormMessage />
+                      <p className="text-[13px] text-ink/55">{t.transferSenderNameDesc}</p>
+                    </FormItem>
+                  )}
+                />
+              </section>
+            </div>
+
+            {/* Summary + submit (sticky beside the form on large screens) */}
+            <aside className={cn(CARD, "lg:sticky lg:top-24")}>
+              <dl className="space-y-3 text-[15px]">
+                <div className="flex justify-between gap-3">
+                  <dt className="text-ink/60">{t.products}</dt>
+                  <dd className="font-display font-extrabold text-ink">{formatPrice(totalPrice)}</dd>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <dt className="text-ink/60">{t.shippingFee}</dt>
+                  <dd className="font-display font-extrabold text-ink">
                     {isLoadingShippingFee ? (
-                      <span className="h-4 w-16 bg-gray-200 animate-pulse rounded inline-block"></span>
+                      <span className="inline-block h-4 w-16 animate-pulse rounded bg-ink/10" />
                     ) : (
                       formatPrice(shippingFee)
                     )}
-                  </span>
+                  </dd>
                 </div>
-                {deliveryQuote?.region === 'jeju' && <p className="text-xs text-ink/60" data-testid="jeju-shipping-breakdown">
+              </dl>
+              {deliveryQuote?.region === "jeju" && (
+                <p className="mt-2 text-xs text-ink/60" data-testid="jeju-shipping-breakdown">
                   {t.shipping.base}: {formatPrice(deliveryQuote.baseFee)} + {t.shipping.jeju}: {formatPrice(deliveryQuote.surcharge)} = {formatPrice(deliveryQuote.total)}
-                </p>}
-                {!destinationAddress && <p className="text-xs text-ink/60">{t.shipping.estimate}</p>}
-                {shippingError && <p role="alert" className="text-sm text-destructive">{t.shipping.unavailable}</p>}
-                <div className="flex justify-between text-lg font-bold mt-4 pt-4 border-t border-gray-100">
-                  <span className="text-foreground">{t.totalAmount}:</span>
-                  <span className="text-brand font-bold">
-                    {formatPrice(totalPrice + shippingFee)}
-                  </span>
-                </div>
+                </p>
+              )}
+              {/* Jeju surcharge note: only for customers whose address/postcode is in Jeju */}
+              {deliveryQuote?.region === "jeju" && <p className="mt-2 text-xs text-ink/60">{t.shipping.estimate}</p>}
+              {shippingError && <p role="alert" className="mt-2 text-sm text-destructive">{t.shipping.unavailable}</p>}
+
+              <div className="mt-4 flex items-center justify-between gap-3 border-t border-ink/10 pt-4">
+                <span className="font-display text-lg font-extrabold text-ink">{t.totalAmount}</span>
+                <span className="font-display text-2xl font-black text-brand sm:text-[28px]">
+                  {formatPrice(totalPrice + shippingFee)}
+                </span>
               </div>
-            </div>
-          </div>
-        </div>
-      </section>
+
+              <Button
+                type="submit"
+                className="mt-5 h-14 w-full gap-2 rounded-xl bg-brand font-display text-lg font-extrabold text-white shadow-sm transition-colors hover:bg-brand-deep"
+                disabled={isSubmitting || isLoadingShippingFee || shippingError || !deliveryQuote || deliveryQuote.mismatch}
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    {t.processingPayment}
+                  </>
+                ) : (
+                  <>
+                    {t.placeOrder}
+                    <ShoppingBag className="h-5 w-5" />
+                  </>
+                )}
+              </Button>
+            </aside>
+          </form>
+        </Form>
+      </main>
 
       <Footer />
     </div>
+  );
+}
+
+// Shared card look for every checkout section
+const CARD = "rounded-2xl bg-white p-5 shadow-card sm:p-6";
+const CARD_TITLE = "font-display text-xl font-extrabold text-ink";
+
+// Korean mobile number as the customer types: 010-0000-0000
+function formatPhoneNumber(value: string) {
+  const digits = value.replace(/\D/g, "");
+  if (digits.length <= 3) return digits;
+  if (digits.length <= 7) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+  return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7, 11)}`;
+}
+
+// Section each step chip jumps to (index 0, the cart, is its own page)
+const STEP_SECTION_IDS = [null, "checkout-details", "checkout-payment"] as const;
+
+// Red page header with the three checkout steps (cart → details → payment).
+// "Сагс" opens the cart page; the other two scroll to their card on this page,
+// and the highlighted chip follows the scroll position.
+function CheckoutHeader({
+  title,
+  steps,
+  activeStep = 1,
+  onStep,
+}: {
+  title: string;
+  steps: readonly string[];
+  activeStep?: number;
+  onStep?: (index: number) => void;
+}) {
+  return (
+    <div className="bg-brand px-4 pb-16 pt-8 text-center text-white md:pb-20 md:pt-10">
+      <h1 className="font-display text-[28px] font-black leading-tight md:text-4xl">{title}</h1>
+      <ol className="mt-4 flex flex-wrap items-center justify-center gap-2">
+        {steps.map((label, index) => {
+          const content = `${index + 1} ${label}`;
+          const active = index === activeStep;
+          const chip = cn(
+            "inline-flex rounded-full px-3.5 py-1.5 font-display text-sm font-bold transition-colors",
+            active ? "bg-white text-brand" : "bg-white/20 text-white hover:bg-white/30",
+          );
+          return (
+            <li key={label}>
+              {index === 0 ? (
+                <Link href="/cart" className={chip}>
+                  {content}
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => onStep?.(index)}
+                  disabled={!onStep}
+                  aria-current={active ? "step" : undefined}
+                  className={cn(chip, "disabled:cursor-default")}
+                >
+                  {content}
+                </button>
+              )}
+            </li>
+          );
+        })}
+      </ol>
+    </div>
+  );
+}
+
+// Cart row: photo (or placeholder), name, unit price, quantity stepper and delete
+function CheckoutCartItem({ item }: { item: CartItem }) {
+  const { updateQuantity, removeItem } = useCart();
+  const { t } = useLanguage();
+  const [imageFailed, setImageFailed] = useState(false);
+  // Bulky cuts are sold in 4kg steps (same rule as the cart page)
+  const bulky = isBulkyMeat(item.name);
+  const step = bulky ? 4 : 1;
+  const showImage = !!item.imageUrl && !imageFailed;
+
+  return (
+    <li className="flex gap-4 py-4 first:pt-0 last:pb-0">
+      <div className="h-20 w-20 flex-shrink-0 overflow-hidden rounded-xl bg-brand/10">
+        {showImage ? (
+          <img
+            src={getFullImageUrl(item.imageUrl)}
+            alt={item.name}
+            className="h-full w-full object-cover"
+            onError={() => setImageFailed(true)}
+          />
+        ) : (
+          <span className="flex h-full w-full items-center justify-center text-xs font-bold uppercase text-brand/70">
+            {t.checkoutPage.noImage}
+          </span>
+        )}
+      </div>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <div className="flex items-start justify-between gap-2">
+          <p className="min-w-0 font-bold leading-snug text-ink">{item.name}</p>
+          <button
+            type="button"
+            onClick={() => removeItem(item.productId)}
+            aria-label={t.remove}
+            className="-mr-1 -mt-1 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-brand transition-colors hover:bg-brand/10"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
+        {/* Price and stepper share one centre line; the row ends level with the photo */}
+        <div className="mt-auto flex items-center justify-between gap-2 pt-2">
+          <p className="text-sm font-semibold text-ink/60">
+            {formatPrice(item.price)} {bulky ? "/ 4кг" : "/ кг"}
+          </p>
+          <div className="flex items-center rounded-full border border-ink/15 bg-white">
+            <button
+              type="button"
+              onClick={() => (item.quantity > step ? updateQuantity(item.productId, item.quantity - step) : removeItem(item.productId))}
+              aria-label={t.decrease}
+              className="flex h-8 w-8 items-center justify-center rounded-full text-ink transition-colors hover:bg-ink/5"
+            >
+              <Minus className="h-4 w-4" />
+            </button>
+            <span className="min-w-[24px] text-center font-display font-extrabold text-ink">{item.quantity}</span>
+            <button
+              type="button"
+              onClick={() => updateQuantity(item.productId, item.quantity + step)}
+              aria-label={t.increase}
+              className="flex h-8 w-8 items-center justify-center rounded-full text-ink transition-colors hover:bg-ink/5"
+            >
+              <Plus className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      </div>
+    </li>
   );
 }

@@ -147,6 +147,16 @@ export interface Translations {
   orderedProducts: string;
   deliveryInfo: string;
   paymentInfo: string;
+  // Checkout page layout (steps, card titles)
+  checkoutPage: {
+    steps: [string, string, string];
+    yourCart: string;
+    itemsUnit: string;
+    customerInfo: string;
+    deliveryAddress: string;
+    selectBank: string;
+    noImage: string;
+  };
   recipient: string;
   address: string;
   paymentStatus: string;
@@ -403,6 +413,15 @@ const translations: Record<Language, Translations> = {
     orderedProducts: "Захиалсан бүтээгдэхүүн",
     deliveryInfo: "Хүргэлтийн мэдээлэл",
     paymentInfo: "Төлбөрийн мэдээлэл",
+    checkoutPage: {
+      steps: ["Сагс", "Мэдээлэл", "Төлбөр"],
+      yourCart: "Таны сагс",
+      itemsUnit: "бараа",
+      customerInfo: "Захиалагчийн мэдээлэл",
+      deliveryAddress: "Хүргэлтийн хаяг",
+      selectBank: "Банк сонгох",
+      noImage: "Зураг",
+    },
     recipient: "Хүлээн авагч",
     address: "Хаяг",
     paymentStatus: "Төлбөрийн төлөв",
@@ -674,6 +693,15 @@ const translations: Record<Language, Translations> = {
     orderedProducts: "Заказанные товары",
     deliveryInfo: "Информация о доставке",
     paymentInfo: "Информация об оплате",
+    checkoutPage: {
+      steps: ["Корзина", "Данные", "Оплата"],
+      yourCart: "Ваша корзина",
+      itemsUnit: "тов.",
+      customerInfo: "Данные заказчика",
+      deliveryAddress: "Адрес доставки",
+      selectBank: "Выберите банк",
+      noImage: "Фото",
+    },
     recipient: "Получатель",
     address: "Адрес",
     paymentStatus: "Статус оплаты",
@@ -946,6 +974,15 @@ const translations: Record<Language, Translations> = {
     orderedProducts: "Ordered Products",
     deliveryInfo: "Delivery Information",
     paymentInfo: "Payment Information",
+    checkoutPage: {
+      steps: ["Cart", "Details", "Payment"],
+      yourCart: "Your cart",
+      itemsUnit: "items",
+      customerInfo: "Customer details",
+      deliveryAddress: "Delivery address",
+      selectBank: "Choose a bank",
+      noImage: "Photo",
+    },
     recipient: "Recipient",
     address: "Address",
     paymentStatus: "Payment Status",
