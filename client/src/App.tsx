@@ -59,6 +59,7 @@ import { NewOrderSoundWatcher } from "@/components/admin/new-order-sound";
 import { PushSync } from "@/components/push-card";
 import { installAuthDeepLinkHandler } from "@/lib/native-auth";
 import { useToast } from "@/hooks/use-toast";
+import { canonicalUrl, isPublicPage } from "@shared/seo";
 
 // Define type for the auth response
 interface AuthCheckResponse {
@@ -96,6 +97,16 @@ function App() {
 }
 
 function AppContent() {
+  const [pagePath] = useLocation();
+  useEffect(() => {
+    const canonical = canonicalUrl(pagePath.split('?')[0]);
+    document.querySelector('link[rel="canonical"]')?.setAttribute('href', canonical);
+    document.querySelector('meta[property="og:url"]')?.setAttribute('content', canonical);
+    document.querySelector('meta[name="robots"]')?.setAttribute(
+      'content', isPublicPage(pagePath.split('?')[0]) ? 'index, follow' : 'noindex, follow',
+    );
+  }, [pagePath]);
+
   const { isLoading } = useAuth();
   const { items } = useCart();
   const cartItemCount = items.reduce((total, item) => total + item.quantity, 0);

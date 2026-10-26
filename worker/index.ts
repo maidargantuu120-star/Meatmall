@@ -7,6 +7,8 @@ import { Bindings } from './types';
 import { authMiddleware } from './middleware';
 import { D1Storage } from './storage';
 import { getDb } from './db';
+import { SITE_ORIGIN } from '../shared/seo';
+import { createSitemap, rewritePageSeo } from './seo';
 
 import authApp from './api/auth';
 import productsApp from './api/products';
@@ -25,6 +27,18 @@ type Env = {
 };
 
 const app = new Hono<Env>();
+
+// Consolidate public www URLs before storage/auth middleware. API calls keep
+// their original origin so existing sessions and native clients still work.
+app.use('*', async (c, next) => {
+    const url = new URL(c.req.url);
+    if (url.hostname === 'www.meatmall.kr'
+        && ['GET', 'HEAD'].includes(c.req.method)
+        && !/^\/api(?:\/|$)/.test(url.pathname)) {
+        return c.redirect(SITE_ORIGIN + url.pathname + url.search, 301);
+    }
+    await next();
+});
 
 // Global middleware
 app.use('*', async (c, next) => {
@@ -73,6 +87,20 @@ app.use('/api/*', async (c, next) => {
 });
 
 // Routes
+app.get('/sitemap.xml', async (c) => {
+    try {
+        const sitemap = await createSitemap(c.get('storage'));
+        return c.body(sitemap, 200, {
+            'Content-Type': 'application/xml; charset=utf-8',
+            'Cache-Control': 'public, max-age=300',
+        });
+    } catch (error) {
+        console.error('Sitemap generation failed:', error);
+        // Never return a misleading empty/partial sitemap when the DB is down.
+        return c.text('Sitemap temporarily unavailable', 503, { 'Retry-After': '300' });
+    }
+});
+
 app.route('/api', authApp);
 app.route('/api/products', productsApp);
 app.route('/api', shopApp); // shopApp mounts at root of /api (e.g. /api/categories)
@@ -125,7 +153,8 @@ app.onError((err, c) => {
 
 // Serve static assets (React App)
 app.get('*', async (c) => {
-    return c.env.ASSETS.fetch(c.req.raw);
+    const response = await c.env.ASSETS.fetch(c.req.raw);
+    return rewritePageSeo(response, c.req.path);
 });
 
 export default app;
