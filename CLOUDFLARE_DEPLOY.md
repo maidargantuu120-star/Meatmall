@@ -186,6 +186,32 @@ in-process mail provider. In production, verify provider acceptance and receipt
 in the intended mailbox, then hand password entry to the human account owner.
 Never test by changing a production password on the owner's behalf.
 
+## Customer order emails (Brevo Free)
+
+Set production secrets `ORDER_EMAIL_FROM=no-reply@notify.meatmall.kr` and
+`ORDER_EMAIL_REPLY_TO=meatmall2021@naver.com`, using the existing restricted
+`BREVO_API_KEY` and authenticated sender domain. Deploy after changing secrets.
+No paid plan, marketing workflow or contact-list import is required.
+
+New orders with a checkout email save the receipt atomically with the order and
+send once in `waitUntil`. The Mongolian email includes item names, quantities,
+prices, delivery charges (including Jeju), total, destination, selected bank,
+account holder/number, depositor name, order number and an explicit request to
+transfer the total. These are order-time snapshots, so later account or delivery
+settings cannot change the receipt. Replies go to the operator mailbox.
+
+The Free plan allows 300 sends per day across order and password-recovery mail.
+Provider acceptance is not proof of inbox delivery; Brevo can queue messages at
+the daily cap. Failed requests do not roll back orders. The administrator's
+order receipt shows mail status and allows manual sending of pending/failed mail.
+Already accepted or uncertain sends cannot be retried blindly. Enabling mail
+does not automatically send historical pending receipts.
+
+Validate with `npx tsx scripts/test-order-email.ts` and
+`node scripts/test-order-email-flow.mjs` after typecheck/build. These use fake
+recipients/providers and disposable local orders only; never create test orders
+in production. The generated `.deployment/order-email-preview.html` is a sample.
+
 ## Additional administrators
 
 The account page `/admin/security` shows the signed-in administrator's current

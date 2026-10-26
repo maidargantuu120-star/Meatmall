@@ -4,14 +4,17 @@ import { orderNo, won } from './push';
 import { ensureOrderEmailStore } from './order-email-store';
 
 const escape = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
-const SUPPORT = 'maidargantuu120@gmail.com';
+const SUPPORT = 'meatmall2021@naver.com';
 
-export function renderOrderEmail(id: number, receipt: OrderEmailReceipt, origin: string) {
+export function renderOrderEmail(id: number, receipt: OrderEmailReceipt, origin: string, supportEmail = SUPPORT) {
   const base = new URL(origin);
   if (!['https:', 'http:'].includes(base.protocol)) throw new Error('Invalid site origin');
   const number = orderNo(id);
   const date = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Seoul', dateStyle: 'medium', timeStyle: 'short' }).format(new Date(receipt.placedAt));
   const account = receipt.paymentAccount;
+  const paymentInstruction = account
+    ? `Доорх дансанд нийт ${won(receipt.totalAmount)} шилжүүлнэ үү.`
+    : 'Төлбөр шилжүүлэхээс өмнө дэлгүүртэй холбогдож дансны мэдээллээ авна уу.';
   const payment = account
     ? `<p style="margin:0 0 8px;font-size:18px;font-weight:bold">${escape(account.bankName)}</p><p style="margin:0 0 8px;font-size:22px;font-weight:bold;letter-spacing:1px">${escape(account.accountNumber)}</p><p style="margin:0">Данс эзэмшигч: ${escape(account.accountHolder)}</p>`
     : '<p>Дансны мэдээллийг авахын тулд дэлгүүртэй холбогдоно уу.</p>';
@@ -27,13 +30,13 @@ export function renderOrderEmail(id: number, receipt: OrderEmailReceipt, origin:
   <table width="100%" cellspacing="0" cellpadding="0" style="font-size:14px">${rows}</table>
   <table width="100%" role="presentation" style="margin:16px 0;font-size:14px"><tr><td style="padding:5px 0">Бүтээгдэхүүний дүн</td><td align="right">${escape(won(receipt.subtotal))}</td></tr><tr><td style="padding:5px 0">Хүргэлтийн төлбөр</td><td align="right">${escape(won(receipt.shippingFee))}</td></tr><tr><td style="padding-top:14px;font-size:20px;font-weight:bold">Нийт төлөх</td><td align="right" style="padding-top:14px;font-size:24px;font-weight:bold;color:#e4002b">${escape(won(receipt.totalAmount))}</td></tr></table>
   ${shippingDetail ? `<p style="font-size:12px;color:#777">${escape(shippingDetail)}</p>` : ''}
-  <div style="margin-top:24px;padding:20px;border-radius:12px;background:#fff1f3;border:1px solid #ffd6dd"><h2 style="margin:0 0 16px;font-size:18px">Төлбөр шилжүүлэх данс</h2>${payment}<p style="margin:16px 0 0;font-size:13px">Шилжүүлэх дүн: <b>${escape(won(receipt.totalAmount))}</b><br>Шилжүүлэгчийн нэр: <b>${escape(receipt.transferAccountHolder)}</b><br>Гүйлгээний утга: <b>${escape(number)}</b></p></div>
+  <div style="margin-top:24px;padding:20px;border-radius:12px;background:#fff1f3;border:1px solid #ffd6dd"><h2 style="margin:0 0 12px;font-size:18px">Төлбөр шилжүүлэх данс</h2><p style="margin:0 0 16px;line-height:1.6">${escape(paymentInstruction)}</p>${payment}<p style="margin:16px 0 0;font-size:13px">Шилжүүлэх дүн: <b>${escape(won(receipt.totalAmount))}</b><br>Шилжүүлэгчийн нэр: <b>${escape(receipt.transferAccountHolder)}</b><br>Гүйлгээний утга: <b>${escape(number)}</b></p></div>
   <p style="font-size:13px;line-height:1.6;color:#555">Төлбөрөө шилжүүлсний дараа захиалгыг баталгаажуулж бэлтгэнэ. Энэ имэйл нь төлбөр төлөгдсөнийг батлах баримт биш болно.</p>
   <div style="border-top:2px dashed #ddd;padding-top:18px;font-size:14px;line-height:1.7"><b>Хүргэлтийн мэдээлэл</b><br>${escape(receipt.customerName)} · ${escape(receipt.customerPhone)}<br>${escape(receipt.customerAddress).replace(/\n/g, '<br>')}</div>
   <p style="text-align:center;margin:24px 0"><a href="${escape(new URL('/my-page', base).href)}" style="display:inline-block;padding:14px 22px;background:#161616;border-radius:8px;color:white;text-decoration:none;font-weight:bold">Миний захиалгууд</a></p>
-  <p style="text-align:center;font-size:12px;color:#777;line-height:1.7">Асуух зүйл байвал энэ имэйлд хариу илгээнэ үү.<br><a href="mailto:${SUPPORT}" style="color:#777">${SUPPORT}</a><br>Meat Mall · 010-8082-9929</p>
+  <p style="text-align:center;font-size:12px;color:#777;line-height:1.7">Асуух зүйл байвал энэ имэйлд хариу илгээнэ үү.<br><a href="mailto:${escape(supportEmail)}" style="color:#777">${escape(supportEmail)}</a><br>Meat Mall · 010-8082-9929</p>
   </td></tr></table></td></tr></table></body></html>`;
-  const text = `${subject}\n${receipt.customerName}\n${date} (KST)\n\n${receipt.items.map(i => `${i.name} · ${i.quantity} кг · ${won(i.amount)}`).join('\n')}\nБүтээгдэхүүн: ${won(receipt.subtotal)}\nХүргэлт: ${won(receipt.shippingFee)}\nНийт төлөх: ${won(receipt.totalAmount)}\n\nТөлбөр шилжүүлэх данс:\n${account ? `${account.bankName}\n${account.accountNumber}\nДанс эзэмшигч: ${account.accountHolder}` : 'Дансны мэдээллийг дэлгүүрээс авна уу.'}\nШилжүүлэгчийн нэр: ${receipt.transferAccountHolder}\nГүйлгээний утга: ${number}\n\nХаяг: ${receipt.customerAddress}\nУтас: ${receipt.customerPhone}\nТөлбөр төлөгдсөнийг батлах баримт биш болно.\n${SUPPORT}`;
+  const text = `${subject}\n${receipt.customerName}\n${date} (KST)\n\n${receipt.items.map(i => `${i.name} · ${i.quantity} кг · ${won(i.amount)}`).join('\n')}\nБүтээгдэхүүн: ${won(receipt.subtotal)}\nХүргэлт: ${won(receipt.shippingFee)}\nНийт төлөх: ${won(receipt.totalAmount)}\n\n${paymentInstruction}\nТөлбөр шилжүүлэх данс:\n${account ? `${account.bankName}\n${account.accountNumber}\nДанс эзэмшигч: ${account.accountHolder}` : 'Дансны мэдээллийг дэлгүүрээс авна уу.'}\nШилжүүлэгчийн нэр: ${receipt.transferAccountHolder}\nГүйлгээний утга: ${number}\n\nХаяг: ${receipt.customerAddress}\nУтас: ${receipt.customerPhone}\nТөлбөр төлөгдсөнийг батлах баримт биш болно.\n${supportEmail}`;
   return { subject, html, text: shippingDetail ? text + '\n' + shippingDetail : text };
 }
 
@@ -52,7 +55,7 @@ export async function deliverOrderEmail(env: Bindings, orderId: number) {
   let accepted = false;
   try {
     const receipt = JSON.parse(row.payload) as OrderEmailReceipt;
-    const message = renderOrderEmail(orderId, receipt, env.BASE_URL || 'https://meatmall.pages.dev');
+    const message = renderOrderEmail(orderId, receipt, env.BASE_URL || 'https://meatmall.kr', env.ORDER_EMAIL_REPLY_TO || SUPPORT);
     const response = await fetch('https://api.brevo.com/v3/smtp/email', {
       method: 'POST',
       headers: { 'api-key': env.BREVO_API_KEY!, 'Content-Type': 'application/json', Accept: 'application/json' },

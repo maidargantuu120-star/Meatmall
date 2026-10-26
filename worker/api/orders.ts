@@ -35,7 +35,7 @@ app.get('/orders/:id/email-preview', requireAdmin, async (c) => {
     const row = await c.env.DB.prepare('SELECT payload FROM order_emails WHERE order_id=?')
         .bind(Number(c.req.param('id'))).first<{ payload: string }>();
     if (!row) return c.json({ message: 'Receipt unavailable' }, 404);
-    return c.html(renderOrderEmail(Number(c.req.param('id')), JSON.parse(row.payload), c.env.BASE_URL || new URL(c.req.url).origin).html);
+    return c.html(renderOrderEmail(Number(c.req.param('id')), JSON.parse(row.payload), c.env.BASE_URL || new URL(c.req.url).origin, c.env.ORDER_EMAIL_REPLY_TO).html);
 });
 
 app.post('/orders/:id/email/retry', requireAdmin, async (c) => {

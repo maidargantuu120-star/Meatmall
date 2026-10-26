@@ -5,6 +5,7 @@ import { OrderStatusBadge } from "@/components/admin/order-status-badge";
 import { BRAND } from "@/lib/brand";
 import { formatOrderId, formatPrice, isBulkyMeat, normalizeDate } from "@/lib/utils";
 import { DEFAULT_SHIPPING_RATES, shippingQuote } from '@shared/shipping';
+import { OrderEmailStatus } from './order-email-status';
 
 export interface ReceiptOrderItem {
   id: number;
@@ -87,6 +88,10 @@ export function OrderReceipt({
             SMS илгээх
           </button>
         </div>
+      </div>
+
+      <div className="border-b border-ink/10 bg-white px-5 py-3 sm:px-7">
+        <OrderEmailStatus key={order.id} orderId={order.id} />
       </div>
 
       {/* Paper */}

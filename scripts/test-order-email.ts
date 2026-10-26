@@ -16,6 +16,10 @@ assert.ok(message.html.includes('TEST-ACCOUNT'));
 assert.ok(message.html.includes('₩36,000'));
 assert.ok(message.html.includes('#ORD-0042'));
 assert.ok(message.html.includes('21:00'));
+assert.ok(message.html.includes('Доорх дансанд нийт ₩36,000 шилжүүлнэ үү.'));
+assert.ok(message.text.includes('Доорх дансанд нийт ₩36,000 шилжүүлнэ үү.'));
+assert.ok(message.html.includes('meatmall2021@naver.com'));
+assert.ok(renderOrderEmail(42, receipt, 'https://meatmall.kr', 'support@example.invalid').html.includes('mailto:support@example.invalid'));
 assert.ok(!message.html.includes('<script>'));
 assert.ok(message.html.includes('&lt;script&gt;'));
 assert.ok(message.text.includes('test@example.invalid') === false); // recipient is not repeated in content
@@ -25,7 +29,7 @@ await writeFile('.deployment/order-email-preview.html', renderOrderEmail(42, { .
 
 let status = 'pending';
 let calls = 0;
-const db = { prepare(sql: string) { return { bind(...args: unknown[]) { return {
+const db = { async batch() { return []; }, prepare(sql: string) { return { bind(...args: unknown[]) { return {
   async first() {
     if (sql.startsWith('UPDATE') && ['pending', 'failed'].includes(status)) {
       status = 'sending'; return { payload: JSON.stringify(receipt) };
@@ -47,7 +51,7 @@ try {
     assert.equal(url, 'https://api.brevo.com/v3/smtp/email');
     const body = JSON.parse(String(options?.body));
     assert.equal(body.to[0].email, receipt.customerEmail);
-    assert.equal(body.replyTo.email, 'maidargantuu120@gmail.com');
+    assert.equal(body.replyTo.email, 'meatmall2021@naver.com');
     return new Response(JSON.stringify({ messageId: 'test-message' }), { status: 201 });
   };
   const results = await Promise.all([deliverOrderEmail(env, 42), deliverOrderEmail(env, 42)]);
