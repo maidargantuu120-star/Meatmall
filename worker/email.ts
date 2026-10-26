@@ -1,6 +1,7 @@
 import type { Bindings } from './types';
 import type { OrderEmailReceipt } from '../shared/order-email';
 import { orderNo, won } from './push';
+import { ensureOrderEmailStore } from './order-email-store';
 
 const escape = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
 const SUPPORT = 'maidargantuu120@gmail.com';
@@ -43,6 +44,7 @@ export function emailConfigured(env: Bindings) {
 /** Claim once. An ambiguous network failure is held for review, never blindly resent. */
 export async function deliverOrderEmail(env: Bindings, orderId: number) {
   if (!emailConfigured(env)) return { status: 'not_configured' };
+  await ensureOrderEmailStore(env.DB);
   const now = Date.now();
   const row = await env.DB.prepare(`UPDATE order_emails SET status='sending', attempts=attempts+1, locked_until=?, updated_at=?
     WHERE order_id=? AND status IN ('pending','failed') RETURNING payload`).bind(now + 60000, now, orderId).first<{ payload: string }>();

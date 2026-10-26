@@ -28,7 +28,8 @@ const runtime = new Miniflare({
 });
 try {
   const db = await runtime.getD1Database('DB');
-  for (const file of ['0000_meatmall.sql', '0004_order_email_outbox.sql']) {
+  // Production may have the base schema without the optional email outbox migration.
+  for (const file of ['0000_meatmall.sql']) {
     for (const sql of (await readFile('migrations/' + file, 'utf8')).split(';').filter(s => s.trim())) await db.prepare(sql).run();
   }
   const request = (route, { body, method = body ? 'POST' : 'GET', cookie } = {}) => runtime.dispatchFetch('https://meatmall.kr/api' + route, {
@@ -57,6 +58,7 @@ try {
     const res = await request('/orders', { body: payload, cookie: customer });
     return { res, data: await res.json() };
   }
+  assert.equal(await db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'order_emails'").first(), null);
   let order = await place(orderPayload());
   assert.equal(order.res.status, 201);
   assert.equal(order.data.totalAmount, 16000);

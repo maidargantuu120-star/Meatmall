@@ -7,6 +7,7 @@ import { notifyAdmins, notifyUser, orderNo, STATUS_NOTICES, won } from '../push'
 import { deliverOrderEmail, emailConfigured, renderOrderEmail } from '../email';
 import type { OrderEmailReceipt } from '../../shared/order-email';
 import { destinationParts, readShippingRates, shippingQuote } from '../../shared/shipping';
+import { ensureOrderEmailStore } from '../order-email-store';
 
 type Env = {
     Bindings: Bindings;
@@ -20,6 +21,7 @@ const app = new Hono<Env>();
 
 app.get('/orders/:id/email', requireAdmin, async (c) => {
     c.header('Cache-Control', 'no-store');
+    await ensureOrderEmailStore(c.env.DB);
     await c.env.DB.prepare("UPDATE order_emails SET status='uncertain', last_error='Delivery interrupted; check Brevo before retry' WHERE order_id=? AND status='sending' AND locked_until < ?")
         .bind(Number(c.req.param('id')), Date.now()).run();
     const row = await c.env.DB.prepare('SELECT status, attempts, provider_message_id, last_error, updated_at, locked_until FROM order_emails WHERE order_id=?')
@@ -29,6 +31,7 @@ app.get('/orders/:id/email', requireAdmin, async (c) => {
 
 app.get('/orders/:id/email-preview', requireAdmin, async (c) => {
     c.header('Cache-Control', 'no-store');
+    await ensureOrderEmailStore(c.env.DB);
     const row = await c.env.DB.prepare('SELECT payload FROM order_emails WHERE order_id=?')
         .bind(Number(c.req.param('id'))).first<{ payload: string }>();
     if (!row) return c.json({ message: 'Receipt unavailable' }, 404);
@@ -36,6 +39,7 @@ app.get('/orders/:id/email-preview', requireAdmin, async (c) => {
 });
 
 app.post('/orders/:id/email/retry', requireAdmin, async (c) => {
+    await ensureOrderEmailStore(c.env.DB);
     if (!emailConfigured(c.env)) return c.json({ message: 'Email provider is not configured' }, 503);
     const id = Number(c.req.param('id'));
     const row = await c.env.DB.prepare('SELECT status FROM order_emails WHERE order_id=?').bind(id).first<{ status: string }>();
@@ -177,6 +181,7 @@ app.post('/orders', async (c) => {
             totalAmount: Math.round((subtotal + shippingFee) * 100) / 100,
             paymentAccount: account?.isActive ? { bankName: account.bankName, accountNumber: account.accountNumber, accountHolder: account.accountHolder } : null,
         };
+        await ensureOrderEmailStore(c.env.DB);
         const order = await storage.createOrder({
             ...orderData,
             customerAddress,
@@ -242,6 +247,7 @@ app.delete('/orders/:id', requireAdmin, async (c) => {
         return c.json({ message: "Захиалга олдсонгүй" }, 404);
     }
 
+    await ensureOrderEmailStore(c.env.DB);
     const success = await storage.deleteOrder(id);
     if (success) {
         return c.json({ message: "Захиалга амжилттай устгагдлаа", id });

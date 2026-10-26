@@ -34,6 +34,13 @@ access and public development URLs are unnecessary.
 
 ## Verification
 
+The worker prepares the order-email outbox with idempotent DDL before saving an
+order, so a legacy database missing migration `0004` cannot fail checkout just
+because order receipt storage is absent. Order, receipt, items and stock changes
+still commit in one D1 transaction. Receipt read/retry/delete paths use the same
+schema guard. `test-shipping.mjs` intentionally starts with only the base schema
+to cover this production failure and verify automatic preparation.
+
 Run `npm run check` and `npm run build`. For a disposable local instance, apply
 the migrations with `--local`, provide secrets in `.dev.vars`, and run
 `npx wrangler pages dev dist/public --port 8799 --ip 127.0.0.1`.
