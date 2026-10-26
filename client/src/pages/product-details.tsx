@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams, useLocation } from "wouter";
+import { useParams, useLocation, Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Navbar } from "@/components/navbar";
@@ -20,7 +20,6 @@ export default function ProductDetails() {
   const [location, setLocation] = useLocation();
   const numericId = parseInt(id);
   const [quantity, setQuantity] = useState(1);
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const { addItem } = useCart();
   const { toast } = useToast();
 
@@ -47,38 +46,18 @@ export default function ProductDetails() {
     enabled: !!product,
   });
 
-  // 선택된 카테고리 또는 현재 제품의 카테고리에 따라 제품을 필터링합니다
-  const filteredProducts = allProducts
-    .filter((p) => {
-      if (selectedCategory) {
-        return p.category === selectedCategory && p.id !== numericId;
-      }
-      return p.category === product?.category && p.id !== numericId;
-    })
-    .slice(0, 4);
-
-  // 제품이 로드되면 기본적으로 해당 제품의 카테고리를 선택합니다
-  useEffect(() => {
-    if (product && !selectedCategory) {
-      setSelectedCategory(product.category);
-    }
-  }, [product, selectedCategory]);
+  // Similar products: same category first, then other products to fill up to 4
+  const otherProducts = allProducts.filter((p) => p.id !== numericId);
+  const similarProducts = [
+    ...otherProducts.filter((p) => p.category === product?.category),
+    ...otherProducts.filter((p) => p.category !== product?.category),
+  ].slice(0, 4);
 
   // 상품 ID가 변경될 때마다 수량을 1로 초기화합니다
   useEffect(() => {
     setQuantity(1);
     window.scrollTo(0, 0);
   }, [numericId]);
-
-  // 사용 가능한 모든 카테고리를 가져옵니다
-  // 중복 제거를 위해 객체를 사용합니다
-  const categoryMap: Record<string, boolean> = {};
-  allProducts.forEach((p) => {
-    if (p.category) {
-      categoryMap[p.category] = true;
-    }
-  });
-  const categories = Object.keys(categoryMap);
 
   const handleQuantityChange = (newQuantity: number) => {
     setQuantity(Math.max(1, newQuantity));
@@ -247,37 +226,16 @@ export default function ProductDetails() {
         </div>
       </section>
 
-      {/* Products in the same category */}
+      {/* Similar products (hidden when the shop has no other products) */}
+      {(isAllProductsLoading || similarProducts.length > 0) && (
       <section className="bg-surface py-10 md:py-14">
         <div className="max-w-6xl mx-auto px-4 md:px-8">
-          <SectionTitle title="Ангилал бүтээгдэхүүн" className="mb-4 md:mb-5" />
+          <SectionTitle title="Төстэй бүтээгдэхүүн" className="mb-5 md:mb-6" />
 
-          {/* Category chips */}
-          <div className="mb-6 -mx-4 px-4 md:mx-0 md:px-0 flex gap-2 overflow-x-auto scrollbar-hide">
-            {categories.map((category) => (
-              <button
-                key={category}
-                className={`flex-shrink-0 rounded-full border-2 px-4 py-1.5 font-display text-[13px] md:text-sm font-bold transition-colors ${
-                  selectedCategory === category
-                    ? "border-ink bg-ink text-white"
-                    : "border-ink/15 bg-white text-ink hover:border-ink/40"
-                }`}
-                onClick={() => setSelectedCategory(category)}
-              >
-                {category}
-              </button>
-            ))}
-          </div>
-
-          {/* Products By Category */}
           {isAllProductsLoading ? (
             <div className="flex justify-center items-center py-6">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand"></div>
             </div>
-          ) : filteredProducts.length === 0 ? (
-            <p className="text-center text-ink/50 py-4 text-sm">
-              Энэ ангилалд бүтээгдэхүүн олдсонгүй
-            </p>
           ) : (
             <motion.div
               initial={{ opacity: 0 }}
@@ -285,14 +243,11 @@ export default function ProductDetails() {
               transition={{ duration: 0.3 }}
               className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-5"
             >
-              {filteredProducts.map((filteredProduct) => (
-                <button
+              {similarProducts.map((filteredProduct) => (
+                <Link
                   key={filteredProduct.id}
-                  type="button"
-                  className="group text-left bg-white rounded-2xl shadow-card overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-card-hover"
-                  onClick={() =>
-                    setLocation(`/products/${filteredProduct.id}`)
-                  }
+                  href={`/products/${filteredProduct.id}`}
+                  className="group block text-left bg-white rounded-2xl shadow-card overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-card-hover"
                 >
                   <div className="aspect-square overflow-hidden bg-ink/5">
                     <img
@@ -316,12 +271,13 @@ export default function ProductDetails() {
                       </span>
                     </div>
                   </div>
-                </button>
+                </Link>
               ))}
             </motion.div>
           )}
         </div>
       </section>
+      )}
 
       <Footer />
     </div>

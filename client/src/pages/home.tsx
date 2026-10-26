@@ -239,13 +239,6 @@ export default function HomePage() {
     setSelectedProduct(null);
   }, []);
 
-  const handleProductClick = useCallback(
-    (productId: number) => {
-      setLocation(`/products/${productId}`);
-    },
-    [setLocation],
-  );
-
   // Check for upcoming non-delivery days to show warning banner
   const upcomingNonDeliveryDays = useMemo(() => {
     if (!nonDeliveryDays || nonDeliveryDays.length === 0) return [];
@@ -420,7 +413,13 @@ export default function HomePage() {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.3, delay: Math.min(index, 8) * 0.05 }}
                       >
-                        <div className="aspect-square relative overflow-hidden bg-ink/5">
+                        {/* Photo and name open the product detail page; the buttons below stay quick actions */}
+                        <Link
+                          href={`/products/${product.id}`}
+                          className="block aspect-square relative overflow-hidden bg-ink/5"
+                          tabIndex={-1}
+                          aria-hidden="true"
+                        >
                           <img
                             src={getFullImageUrl(
                               product.thumbnailUrl || product.imageUrl,
@@ -459,11 +458,17 @@ export default function HomePage() {
                               </div>
                             </div>
                           )}
-                        </div>
+                        </Link>
 
                         <div className="p-3 md:p-4 flex-1 flex flex-col">
-                          <h3 className="font-bold text-[15px] md:text-lg text-ink line-clamp-2 leading-snug">
-                            {getLocalizedProductName(product, language)}
+                          <h3 className="font-bold text-[15px] md:text-lg text-ink leading-snug">
+                            {/* line-clamp makes the link a box, so the whole name area is tappable */}
+                            <Link
+                              href={`/products/${product.id}`}
+                              className="line-clamp-2 transition-colors hover:text-brand focus-visible:text-brand focus-visible:outline-none"
+                            >
+                              {getLocalizedProductName(product, language)}
+                            </Link>
                           </h3>
 
                           <div className="mt-auto pt-2">

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { useLanguage } from '@/contexts/language-context';
@@ -25,7 +26,10 @@ function loadPostcode() {
   });
   return loading;
 }
-export function AddressSearch({ onSelect }: { onSelect: (address: string, postcode: string) => void }) {
+export function AddressSearch({ onSelect, buttonClassName }: {
+  onSelect: (address: string, postcode: string) => void;
+  buttonClassName?: string;
+}) {
   const { t } = useLanguage();
   const [open, setOpen] = useState(false);
   const [error, setError] = useState(false);
@@ -45,8 +49,12 @@ export function AddressSearch({ onSelect }: { onSelect: (address: string, postco
     return () => { active = false; };
   }, [open, container]);
   return <>
-    <Button type="button" variant="outline" onClick={() => { setError(false); setOpen(true); }}>{t.shipping.search}</Button>
-    {error && <p role="alert" className="text-sm text-destructive">{t.shipping.searchError}</p>}
+    <Button type="button" variant="outline" className={buttonClassName} onClick={() => { setError(false); setOpen(true); }}>
+      <Search className="h-4 w-4" aria-hidden="true" />
+      {t.shipping.search}
+    </Button>
+    {/* w-full: drops below the button when it sits in a flex row */}
+    {error && <p role="alert" className="w-full text-sm text-destructive">{t.shipping.searchError}</p>}
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="w-[calc(100vw-24px)] max-w-lg p-4">
         <DialogTitle>{t.shipping.search}</DialogTitle>
