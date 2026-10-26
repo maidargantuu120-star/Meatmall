@@ -17,6 +17,7 @@ import ordersApp from './api/orders';
 import cmsApp from './api/cms';
 import pushApp from './api/push';
 import adminInvitationsApp from './api/admin-invitations';
+import passwordRecoveryApp from './api/password-recovery';
 
 import { IStorage } from './storage';
 
@@ -56,10 +57,10 @@ app.use('*', async (c, next) => {
 // Global middleware
 const requestLogger = logger();
 app.use('*', async (c, next) => {
-    if (c.req.path.startsWith('/api/auth/google')) {
+    if (c.req.path.startsWith('/api/auth/google') || c.req.path.startsWith('/api/admin/password-recovery/')) {
         c.header('Cache-Control', 'no-store');
         c.header('Referrer-Policy', 'no-referrer');
-        await next(); // OAuth codes must not appear in request logs.
+        await next(); // Authentication/recovery codes and request details must not appear in logs.
     } else {
         await requestLogger(c, next);
     }
@@ -118,6 +119,7 @@ app.route('/api', ordersApp); // ordersApp mounts at root of /api
 app.route('/api', cmsApp); // cmsApp mounts at root of /api
 app.route('/api', pushApp); // /api/push/*
 app.route('/api', adminInvitationsApp);
+app.route('/api', passwordRecoveryApp);
 
 app.get('/uploads/*', async (c) => {
     try {

@@ -212,6 +212,7 @@ export default function AdminLogin() {
                 <Button type="button" variant="outline" className="w-full h-11" onClick={() => loginWithGoogle()} disabled={isLoading}>
                   Google-ээр нэвтрэх
                 </Button>
+                <a href="/admin/forgot-password" className="block text-center text-sm font-semibold text-brand hover:underline">Нууц үгээ мартсан уу?</a>
 
                 {/* Local development only: admin login without the production password */}
                 {showDevLogin && (

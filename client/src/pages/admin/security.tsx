@@ -57,6 +57,7 @@ export default function AdminSecurity() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2"><LockKeyhole className="h-5 w-5" /> Админы нууц үг</CardTitle>
             <p className="break-all text-sm text-muted-foreground">Нэвтэрсэн админ: {user?.email}</p>
+            <a href="/admin/forgot-password" className="text-sm font-semibold text-brand hover:underline">Одоогийн нууц үгээ мартсан уу? И-мэйлээр сэргээх</a>
             <p className="text-sm text-muted-foreground">Шинэ нууц үг хадгалмагц хүчинтэй болно. Бусад төхөөрөмжийн нэвтрэлт дуусна.</p>
           </CardHeader>
           <CardContent>

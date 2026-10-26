@@ -40,6 +40,7 @@ const AdminBankAccounts = lazy(() => import("@/pages/admin/bank-accounts"));
 const AdminSettings = lazy(() => import("@/pages/admin/settings"));
 const AdminSecurity = lazy(() => import("@/pages/admin/security"));
 const AdminActivate = lazy(() => import("@/pages/admin/activate"));
+const AdminPasswordRecovery = lazy(() => import("@/pages/admin/password-recovery"));
 const AdminHeroSettings = lazy(() => import("@/pages/admin/hero-settings"));
 const AdminLogoSettings = lazy(() => import("@/pages/admin/logo-settings"));
 const AdminFooterSettings = lazy(() => import("@/pages/admin/footer-settings"));
@@ -178,6 +179,8 @@ function AppContent() {
 
             {/* Admin routes */}
             <Route path="/admin/login" component={AdminLogin} />
+            <Route path="/admin/forgot-password" component={AdminPasswordRecovery} />
+            <Route path="/admin/reset-password" component={AdminPasswordRecovery} />
             <Route path="/admin/activate" component={AdminActivate} />
             <Route path="/admin">
               {() => <AdminRoute component={AdminDashboard} />}

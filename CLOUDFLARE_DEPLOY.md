@@ -141,6 +141,44 @@ Validate with `npm run check`, `npm run build`,
 `node scripts/test-admin-password.mjs`, and `node scripts/test-google-oauth.mjs`.
 The tests use disposable local databases and never change production passwords.
 
+## Administrator password recovery
+
+`/admin/login` and `/admin/security` link to `/admin/forgot-password`. The email
+flow uses the existing Brevo API integration. Set encrypted `BREVO_API_KEY` and
+`PASSWORD_RESET_EMAIL_FROM` to a verified sender. If that dedicated sender is
+absent, a configured `ORDER_EMAIL_FROM` is reused. Setting the dedicated sender
+does not enable order-confirmation emails. The public availability check never
+exposes credentials or account data; an unconfigured mail service returns 503
+and the UI does not pretend a message was sent.
+
+Requests use the same 202 response for administrators, members, nonexistent
+addresses and email-throttled requests. Account lookup and sending happen after
+the response. Persistent, atomic D1 counters allow 10 requests per IP and three
+per normalized email in each 15-minute window; token operations allow 30 per IP.
+Rate keys use HMAC rather than storing raw IPs/emails in the counters.
+
+Only one unambiguous existing administrator receives a recovery link. A random
+256-bit token is stored as SHA-256, expires in 15 minutes, and is bound to that
+account's current password fingerprint and email. New links invalidate previous
+ones. Tokens appear only in the email's URL fragment, never responses, query
+strings or logs. Recovery routes disable request logging and caching; the page
+sets a no-referrer policy. Failed provider requests invalidate the link; ambiguous
+timeouts do not trigger automatic duplicate mail sends.
+
+The recipient enters and confirms a new 12–128 character password, without their
+old password. A conditional D1 transaction consumes the token and updates only
+that administrator's managed password hash. Replays, concurrent claims, expired
+tokens, changed email/password and removed administrator roles cannot reset it.
+All old sessions/bearer tokens and the legacy bootstrap password stop working.
+There is no automatic sign-in. Account identity, Google links, roles and orders
+are preserved. Tables are created lazily, without altering existing schemas.
+
+Validate with `npm run check`, `npm run build` and
+`node scripts/test-password-recovery.mjs`. Tests use disposable accounts and an
+in-process mail provider. In production, verify provider acceptance and receipt
+in the intended mailbox, then hand password entry to the human account owner.
+Never test by changing a production password on the owner's behalf.
+
 ## Additional administrators
 
 The account page `/admin/security` shows the signed-in administrator's current
