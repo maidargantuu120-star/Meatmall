@@ -113,6 +113,34 @@ Validate with `npm run check`, `npm run build`,
 `node scripts/test-admin-password.mjs`, and `node scripts/test-google-oauth.mjs`.
 The tests use disposable local databases and never change production passwords.
 
+## Web push notifications
+
+Set production secrets `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` (a matching P-256
+Web Push key pair), and `VAPID_SUBJECT=mailto:maidargantuu120@gmail.com`, then
+deploy. Keep the private key only in encrypted Cloudflare secrets. Keep this pair
+stable: existing browser subscriptions depend on its public key. Subscriptions
+are saved in D1 lazily, without changing accounts, passwords or order records.
+
+Installing the web app does not grant notification permission. iOS/iPadOS 16.4+
+requires opening the Home Screen app and granting permission after a button tap.
+The client requests permission directly in that tap, before any asynchronous
+worker lookup, and subscribes only after the service worker is active. Normal
+Chrome and macOS Safari use the same flow. Native Capacitor push is separate.
+
+Already granted devices automatically reconnect on login and when returning to
+the app, without another permission prompt. The UI reflects the resulting server
+subscription. Explicitly turning notifications off persists a device opt-out;
+automatic reconnect does not undo it. Blocked permission and installation advice
+remain visible. Missing server configuration and reconnect failures have retry
+states. Enabling is separate from sending a test: a failed test cannot masquerade
+as failed permission. The test endpoint reports failure when no push service
+accepted a message and removes expired subscriptions on HTTP 404/410.
+
+Validate with `npm run check`, `npm run build`, and
+`node scripts/test-web-push.mjs`. These use simulated browser permission states,
+a disposable D1 database and an in-process push provider. Real iPhone/Android
+notification display still needs a physical-device check after deployment.
+
 ## Search indexing
 
 The canonical storefront origin is `https://meatmall.kr`. The Pages worker

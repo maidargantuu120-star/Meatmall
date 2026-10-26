@@ -25,11 +25,11 @@ const CREATE_TABLE = `CREATE TABLE IF NOT EXISTS push_subscriptions (
     created_at INTEGER NOT NULL
 )`;
 
-let tableReady = false;
+const readyTables = new WeakSet<D1Database>();
 async function ensureTable(db: D1Database) {
-    if (tableReady) return;
+    if (readyTables.has(db)) return;
     await db.prepare(CREATE_TABLE).run();
-    tableReady = true;
+    readyTables.add(db);
 }
 
 export function pushConfigured(env: Bindings): boolean {
@@ -64,7 +64,7 @@ async function sendToRows(env: Bindings, rows: SubscriptionRow[], notice: PushNo
         publicKey: env.VAPID_PUBLIC_KEY,
         privateKey: env.VAPID_PRIVATE_KEY,
     };
-    await Promise.all(rows.map(async (row) => {
+    const delivered = await Promise.all(rows.map(async (row) => {
         const subscription: PushSubscription = {
             endpoint: row.endpoint,
             expirationTime: null,
@@ -81,25 +81,29 @@ async function sendToRows(env: Bindings, rows: SubscriptionRow[], notice: PushNo
             if (res.status === 404 || res.status === 410) {
                 await env.DB.prepare('DELETE FROM push_subscriptions WHERE id = ?').bind(row.id).run();
             } else if (!res.ok) {
-                console.error('Push rejected', res.status, await res.text());
+                console.error('Push rejected', res.status);
             }
+            return res.ok;
         } catch (error) {
-            console.error('Push failed', error);
+            console.error('Push failed', error instanceof Error ? error.name : 'Error');
+            return false;
         }
     }));
+    return { sent: delivered.filter(Boolean).length, total: rows.length };
 }
 
 // Never throws: a failed notification must not fail the order request that triggered it
 export async function notifyUser(env: Bindings, userId: number, notice: PushNotice) {
-    if (!pushConfigured(env)) return;
+    if (!pushConfigured(env)) return { sent: 0, total: 0 };
     try {
         await ensureTable(env.DB);
         const { results } = await env.DB.prepare(
             'SELECT id, endpoint, p256dh, auth FROM push_subscriptions WHERE user_id = ?',
         ).bind(userId).all<SubscriptionRow>();
-        await sendToRows(env, results, notice);
+        return await sendToRows(env, results, notice);
     } catch (error) {
         console.error('notifyUser failed', error);
+        return { sent: 0, total: 0 };
     }
 }
 

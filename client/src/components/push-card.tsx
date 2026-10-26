@@ -9,30 +9,39 @@ import {
   getPushState,
   sendTestPush,
   syncPushSubscription,
+  PUSH_STATE_EVENT,
   type PushState,
 } from "@/lib/push";
 import { cn } from "@/lib/utils";
 
 // Shared state hook: current push state for this device + busy flag
 export function usePushState() {
+  const { user } = useAuth();
+  const { t } = useLanguage();
+  const { toast } = useToast();
   const [state, setState] = useState<PushState | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     let alive = true;
-    getPushState()
+    const update = (event: Event) => setState((event as CustomEvent<PushState>).detail);
+    window.addEventListener(PUSH_STATE_EVENT, update);
+    (user?.id ? syncPushSubscription() : getPushState())
       .then((next) => alive && setState(next))
-      .catch(() => alive && setState("unsupported"));
+      .catch(() => alive && setState("error"));
     return () => {
       alive = false;
+      window.removeEventListener(PUSH_STATE_EVENT, update);
     };
-  }, []);
+  }, [user?.id]);
 
   const run = async (task: () => Promise<PushState | void>) => {
     setBusy(true);
     try {
       const next = await task();
       setState(next ?? (await getPushState()));
+    } catch {
+      toast({ title: t.push.error, variant: "destructive" });
     } finally {
       setBusy(false);
     }
@@ -49,16 +58,7 @@ export function PushCard({ className }: { className?: string }) {
 
   if (state === null || (state === "unsupported" && import.meta.env.VITE_API_BASE_URL)) return null;
 
-  const turnOn = () =>
-    run(async () => {
-      try {
-        const next = await enablePush();
-        if (next === "on") await sendTestPush();
-        return next;
-      } catch {
-        toast({ title: t.push.error, variant: "destructive" });
-      }
-    });
+  const turnOn = () => run(enablePush);
 
   const test = () =>
     run(async () => {
@@ -95,17 +95,22 @@ export function PushCard({ className }: { className?: string }) {
         </div>
       </div>
 
-      {state === "off" && (
-        <button
-          type="button"
-          onClick={turnOn}
-          disabled={busy}
-          className="mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-full bg-brand font-display text-sm font-extrabold text-white transition-colors hover:bg-brand-deep disabled:opacity-60"
-          data-testid="push-enable"
-        >
-          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bell className="h-4 w-4" />}
-          {t.push.turnOn}
-        </button>
+      {(state === "off" || state === "error" || state === "unconfigured") && (
+        <>
+          <p className="mt-3 text-xs leading-relaxed text-ink/60" role="status">
+            {state === "unconfigured" ? t.push.unconfigured : state === "error" ? t.push.error : t.push.permissionNote}
+          </p>
+          <button
+            type="button"
+            onClick={turnOn}
+            disabled={busy}
+            className="mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-full bg-brand font-display text-sm font-extrabold text-white transition-colors hover:bg-brand-deep disabled:opacity-60"
+            data-testid="push-enable"
+          >
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bell className="h-4 w-4" />}
+            {state === "off" ? t.push.turnOn : t.push.retry}
+          </button>
+        </>
       )}
 
       {on && (
@@ -159,7 +164,18 @@ export function PushCard({ className }: { className?: string }) {
 export function PushSync() {
   const { user } = useAuth();
   useEffect(() => {
-    if (user?.id) syncPushSubscription().catch(() => {});
+    if (!user?.id) return;
+    const sync = () => { void syncPushSubscription().catch(() => {}); };
+    const visible = () => { if (document.visibilityState === "visible") sync(); };
+    sync();
+    window.addEventListener("focus", sync);
+    window.addEventListener("appinstalled", sync);
+    document.addEventListener("visibilitychange", visible);
+    return () => {
+      window.removeEventListener("focus", sync);
+      window.removeEventListener("appinstalled", sync);
+      document.removeEventListener("visibilitychange", visible);
+    };
   }, [user?.id]);
   return null;
 }

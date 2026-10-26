@@ -17,6 +17,7 @@ const app = new Hono<Env>();
 
 // Public key the browser needs for PushManager.subscribe(); null when push is not set up
 app.get('/push/public-key', (c) => {
+    c.header('Cache-Control', 'no-store');
     return c.json({ publicKey: pushConfigured(c.env) ? c.env.VAPID_PUBLIC_KEY : null });
 });
 
@@ -44,14 +45,16 @@ app.post('/push/unsubscribe', requireAuth, async (c) => {
 
 // "Send me a test" button: only ever reaches the caller's own devices
 app.post('/push/test', requireAuth, async (c) => {
+    if (!pushConfigured(c.env)) return c.json({ message: 'Push is not configured' }, 503);
     const user = c.get('user')!;
-    await notifyUser(c.env, user.id, {
+    const result = await notifyUser(c.env, user.id, {
         title: 'Meat Mall',
         body: 'Мэдэгдэл амжилттай идэвхжлээ 🔔',
         url: user.isAdmin ? '/admin' : '/my-page',
         tag: 'test',
     });
-    return c.json({ ok: true });
+    if (!result.sent) return c.json({ message: 'No notification was accepted. Reconnect this device and try again.' }, 502);
+    return c.json({ ok: true, sent: result.sent });
 });
 
 export default app;

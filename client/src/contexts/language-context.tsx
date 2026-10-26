@@ -173,6 +173,9 @@ export interface Translations {
     denied: string;
     unsupported: string;
     error: string;
+    retry: string;
+    unconfigured: string;
+    permissionNote: string;
   };
   // My Page delivery tracker (title / sub / chip per status, then stops)
   orderTracker: {
@@ -418,6 +421,9 @@ const translations: Record<Language, Translations> = {
       denied: "Мэдэгдэл хаагдсан байна. Утасны тохиргооноос Meat Mall-д мэдэгдэл зөвшөөрнө үү.",
       unsupported: "Энэ хөтөч мэдэгдэл дэмжихгүй байна. Chrome эсвэл Samsung Internet ашиглана уу.",
       error: "Мэдэгдэл асаахад алдаа гарлаа. Дахин оролдоно уу.",
+      retry: "Дахин холбох",
+      unconfigured: "Мэдэгдлийн серверийн тохиргоо хийгдээгүй байна. Түр хүлээгээд дахин оролдоно уу.",
+      permissionNote: "Анх удаа мэдэгдэл авахдаа хөтөч эсвэл утасны зөвшөөрлийн цонхонд «Зөвшөөрөх» дарна уу.",
     },
     orderTracker: {
       pending: {
@@ -679,6 +685,9 @@ const translations: Record<Language, Translations> = {
       denied: "Уведомления заблокированы. Разрешите их для Meat Mall в настройках телефона.",
       unsupported: "Этот браузер не поддерживает уведомления. Используйте Chrome или Samsung Internet.",
       error: "Не удалось включить уведомления. Попробуйте ещё раз.",
+      retry: "Подключить снова",
+      unconfigured: "Сервис уведомлений ещё не настроен. Попробуйте позже.",
+      permissionNote: "При первом включении нажмите «Разрешить» в запросе браузера или телефона.",
     },
     orderTracker: {
       pending: {
@@ -941,6 +950,9 @@ const translations: Record<Language, Translations> = {
       denied: "Notifications are blocked. Allow them for Meat Mall in your phone settings.",
       unsupported: "This browser doesn't support notifications. Please use Chrome or Samsung Internet.",
       error: "Couldn't turn on notifications. Please try again.",
+      retry: "Reconnect",
+      unconfigured: "The notification service is not configured yet. Please try again later.",
+      permissionNote: "The first time, choose Allow in your browser or phone's notification prompt.",
     },
     orderTracker: {
       pending: {

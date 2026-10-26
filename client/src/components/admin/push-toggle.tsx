@@ -1,35 +1,25 @@
 import { BellRing, BellOff, Loader2 } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
 import { usePushState } from "@/components/push-card";
-import { disablePush, enablePush, sendTestPush } from "@/lib/push";
+import { disablePush, enablePush } from "@/lib/push";
 import { cn } from "@/lib/utils";
 
 const HINTS: Record<string, string> = {
   "needs-install": "iPhone: эхлээд нүүр дэлгэц рүү нэмнэ үү",
   denied: "Утасны тохиргооноос мэдэгдэл зөвшөөрнө үү",
   unsupported: "Энэ хөтөч дэмжихгүй",
+  unconfigured: "Мэдэгдлийн серверийн тохиргоо хийгдээгүй байна",
+  error: "Холболт амжилтгүй. Дахин дарж оролдоно уу",
 };
 
 // Push on/off for the admin sidebar: new orders arrive on this phone even when the page is closed
 export function AdminPushToggle() {
-  const { toast } = useToast();
   const { state, busy, run } = usePushState();
 
   if (state === null) return null;
   const on = state === "on";
   const hint = HINTS[state];
 
-  const toggle = () =>
-    run(async () => {
-      if (on) return disablePush();
-      try {
-        const next = await enablePush();
-        if (next === "on") await sendTestPush();
-        return next;
-      } catch {
-        toast({ title: "Мэдэгдэл асаахад алдаа гарлаа", variant: "destructive" });
-      }
-    });
+  const toggle = () => run(on ? disablePush : enablePush);
 
   const Icon = busy ? Loader2 : on ? BellRing : BellOff;
 
@@ -37,7 +27,7 @@ export function AdminPushToggle() {
     <button
       type="button"
       onClick={toggle}
-      disabled={busy || !!hint}
+      disabled={busy || state === "needs-install" || state === "denied" || state === "unsupported"}
       className="flex w-full items-center rounded-lg px-3 py-3 text-left text-white/70 transition-colors duration-200 hover:bg-white/10 hover:text-white disabled:hover:bg-transparent md:py-2.5"
       aria-pressed={on}
       data-testid="admin-push-toggle"
