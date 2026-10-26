@@ -27,11 +27,8 @@ import {
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Image, Plus, Trash2, Upload } from "lucide-react";
-import {
-  getFullImageUrl,
-  handleImageError,
-  compressImage,
-} from "@/lib/image-utils";
+import { compressImage } from "@/lib/image-utils";
+import { BrandHeroSlide } from "@/components/sections/brand-hero-slide";
 import { logger } from "@/lib/logger";
 
 // Create form schema
@@ -218,6 +215,7 @@ export default function HeroSettings() {
               </Button>
             </CardHeader>
             <CardContent className="max-md:p-4 max-md:pt-0">
+              <p className="mb-4 text-sm text-muted-foreground">Зураг солиход улаан дэвсгэр, ташуу хүрээ, товч болон лого хэвээр үлдэнэ. Зөвхөн махны зураг байрлах хэсэг өөрчлөгдөнө. Гарчиг, тайлбарыг хоосон үлдээвэл үндсэн текст харагдана.</p>
               {isLoading ? (
                 <div className="flex justify-center items-center h-60">
                   <div className="w-8 h-8 border-2 border-secondary border-t-transparent rounded-full animate-spin"></div>
@@ -363,43 +361,14 @@ export default function HeroSettings() {
                                 <div className="text-sm font-medium max-md:text-xs max-md:font-semibold max-md:text-ink/60">
                                   Урьдчилсан харагдац
                                 </div>
-                                {form.watch(`slides.${index}.imageUrl`) ? (
-                                  <div className="relative aspect-video rounded-md overflow-hidden border max-md:rounded-xl max-md:border-ink/10">
-                                    <img
-                                      src={getFullImageUrl(
-                                        form.watch(
-                                          `slides.${index}.imageUrl`,
-                                        ) || "",
-                                      )}
-                                      alt="Slide preview"
-                                      className="w-full h-full object-cover"
-                                      onError={(e) =>
-                                        handleImageError(
-                                          e,
-                                          form.watch(
-                                            `slides.${index}.imageUrl`,
-                                          ),
-                                        )
-                                      }
-                                    />
-                                  </div>
-                                ) : (
-                                  <div className="aspect-video rounded-md border border-dashed border-gray-300 flex items-center justify-center bg-gray-50 max-md:rounded-xl max-md:border-ink/15 max-md:bg-surface">
-                                    <span className="text-gray-400 max-md:text-sm max-md:text-ink/40">
-                                      Зураг байхгүй байна
-                                    </span>
-                                  </div>
-                                )}
-
-                                <div className="p-4 bg-ink text-white rounded-md mt-4 max-md:mt-2 max-md:rounded-xl">
-                                  <h3 className="font-bold text-lg mb-2 max-md:break-words max-md:text-base">
-                                    {form.watch(`slides.${index}.title`) ||
-                                      "Гарчиг"}
-                                  </h3>
-                                  <p className="text-sm opacity-80 max-md:break-words">
-                                    {form.watch(`slides.${index}.text`) ||
-                                      "Тайлбар текст..."}
-                                  </p>
+                                <div className="mx-auto max-w-sm overflow-hidden rounded-xl border border-ink/10">
+                                  <BrandHeroSlide
+                                    title={form.watch(`slides.${index}.title`)}
+                                    text={form.watch(`slides.${index}.text`)}
+                                    imageUrl={form.watch(`slides.${index}.imageUrl`)}
+                                    compact
+                                    heading="h3"
+                                  />
                                 </div>
                               </div>
                             </div>
