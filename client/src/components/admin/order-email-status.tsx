@@ -33,20 +33,21 @@ export function OrderEmailStatus({ orderId }: { orderId: number }) {
   const canRetry = state?.configured && (status === 'pending' || status === 'failed');
 
   return (
+    // Phone: label and state on one row. PC (receipt side panel): stacked like the status/SMS rows.
     <div className="space-y-2 text-xs text-black">
-      <div className="flex items-center justify-between gap-3">
-        <span className="font-semibold">Захиалгын и-мэйл</span>
-        <span role="status" className="text-right">
+      <div className="flex items-center justify-between gap-3 md:flex-col md:items-stretch md:gap-1">
+        <span className="font-semibold md:text-ink/60">Захиалгын и-мэйл</span>
+        <span role="status" className="text-right md:text-left md:text-sm md:font-semibold">
           {query.isPending ? 'Шалгаж байна…' : query.isError ? 'Төлөв шалгахад алдаа гарлаа'
             : !state?.configured ? 'И-мэйл илгээлт тохируулаагүй'
             : labels[status || ''] || 'Энэ захиалгын и-мэйл байхгүй'}
         </span>
       </div>
-      <div className="flex justify-end gap-2">
+      <div className="flex justify-end gap-2 md:justify-stretch">
         <button type="button" onClick={() => void query.refetch()} disabled={query.isFetching || retry.isPending}
-          className="rounded-full border border-gray-300 bg-white px-3 py-1.5 disabled:opacity-50">Шалгах</button>
+          className="rounded-full border border-gray-300 bg-white px-3 py-1.5 disabled:opacity-50 md:flex-1 md:py-2">Шалгах</button>
         {canRetry && <button type="button" onClick={() => retry.mutate()} disabled={retry.isPending || query.isFetching}
-          className="rounded-full border border-gray-300 bg-white px-3 py-1.5 disabled:opacity-50">
+          className="rounded-full border border-gray-300 bg-white px-3 py-1.5 disabled:opacity-50 md:flex-1 md:py-2">
           {retry.isPending ? 'Илгээж байна…' : status === 'failed' ? 'Дахин илгээх' : 'Илгээх'}
         </button>}
       </div>
