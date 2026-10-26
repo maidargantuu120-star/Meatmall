@@ -62,6 +62,8 @@ try {
   let order = await place(orderPayload());
   assert.equal(order.res.status, 201);
   assert.equal(order.data.totalAmount, 16000);
+  // Applying the migration later must work after automatic schema repair.
+  for (const sql of (await readFile('migrations/0004_order_email_outbox.sql', 'utf8')).split(';').filter(s => s.trim())) await db.prepare(sql).run();
   order = await place(orderPayload('제주특별자치도 제주시 문연로 6', '63122', 12000));
   assert.equal(order.res.status, 201);
   assert.equal(order.data.totalAmount, 22000, 'server ignores forged product and total amounts');
