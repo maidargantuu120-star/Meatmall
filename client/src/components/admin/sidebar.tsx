@@ -54,7 +54,6 @@ export function AdminSidebar() {
       label: "Захиалгууд",
       notificationCount: pendingOrdersCount,
     },
-    { path: "/admin/users", icon: "people", label: "Хэрэглэгчид" },
     {
       path: "/admin/bank-accounts",
       icon: "account_balance",
