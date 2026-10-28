@@ -49,7 +49,13 @@ app.post('/orders/:id/email/retry', requireAdmin, async (c) => {
 });
 
 // Orders
+app.get('/orders/latest-id', requireAdmin, async (c) => {
+    c.header('Cache-Control', 'no-store');
+    return c.json({ latestOrderId: await c.get('storage').getLatestOrderId() });
+});
+
 app.get('/orders/pending-count', requireAdmin, async (c) => {
+    c.header('Cache-Control', 'no-store');
     const storage = c.get('storage');
     const [count, latestOrderId] = await Promise.all([
         storage.getPendingOrdersCount(),
@@ -72,8 +78,24 @@ app.get('/orders', requireAdmin, async (c) => {
     const startDate = startDateStr ? new Date(startDateStr) : undefined;
     const endDate = endDateStr ? new Date(endDateStr) : undefined;
 
-    const orders = await storage.getOrdersWithItems(startDate, endDate);
+    const requestedLimit = c.req.query('limit') === undefined ? undefined : Number(c.req.query('limit'));
+    if (requestedLimit !== undefined && (!Number.isSafeInteger(requestedLimit) || requestedLimit < 1 || requestedLimit > 100)) return c.json({ message: 'Invalid limit' }, 400);
+    const orders = await storage.getOrdersWithItems(startDate, endDate, { limit: requestedLimit });
     return c.json(orders);
+});
+
+app.get('/orders/page', requireAdmin, async (c) => {
+    c.header('Cache-Control', 'no-store');
+    const startDate = c.req.query('startDate') ? new Date(c.req.query('startDate')!) : undefined;
+    const endDate = c.req.query('endDate') ? new Date(c.req.query('endDate')!) : undefined;
+    const beforeId = c.req.query('before') ? Number(c.req.query('before')) : undefined;
+    const search = (c.req.query('search') || '').trim();
+    const status = c.req.query('status') || 'all';
+    if ((startDate && !Number.isFinite(startDate.getTime())) || (endDate && !Number.isFinite(endDate.getTime())) ||
+        (beforeId !== undefined && (!Number.isSafeInteger(beforeId) || beforeId < 1)) || search.length > 120 ||
+        !['all','pending','processing','completed','cancelled'].includes(status)) return c.json({ message: 'Invalid order filters' }, 400);
+    const rows = await c.get('storage').getOrdersWithItems(startDate, endDate, { limit: 51, beforeId, search, status });
+    return c.json({ orders: rows.slice(0, 50), nextBeforeId: rows.length > 50 ? rows[49].id : null });
 });
 
 app.get('/orders/:id', requireAuth, async (c) => {

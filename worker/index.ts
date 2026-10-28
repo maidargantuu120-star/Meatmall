@@ -123,6 +123,12 @@ app.route('/api', passwordRecoveryApp);
 
 app.get('/uploads/*', async (c) => {
     try {
+        const cache = await caches.open('meatmall-public-images-v1').catch(() => undefined);
+        const cacheKey = new Request(new URL(c.req.path, c.req.url).href);
+        if (cache && c.req.method === 'GET') {
+            const hit = await cache.match(cacheKey).catch(() => undefined);
+            if (hit) return hit;
+        }
         const key = c.req.path.replace(/^\/uploads\//, '');
         // Decode URI component to handle spaces and special characters
         const decodedKey = decodeURIComponent(key);
@@ -145,9 +151,11 @@ app.get('/uploads/*', async (c) => {
         headers.set('Access-Control-Allow-Origin', '*');
         headers.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
 
-        return new Response(object.body as any, {
+        const response = new Response(object.body as any, {
             headers,
         });
+        if (cache && c.req.method === 'GET') c.executionCtx.waitUntil(cache.put(cacheKey, response.clone()).catch(() => undefined));
+        return response;
     } catch (e) {
         console.error('Error serving file:', e);
         return c.text('Internal Server Error', 500);

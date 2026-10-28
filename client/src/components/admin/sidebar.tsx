@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
-import { useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { clearAuthToken } from "@/lib/auth-token";
 import { useToast } from "@/hooks/use-toast";
@@ -23,14 +22,6 @@ export function AdminSidebar() {
   useEffect(() => {
     setIsMobileMenuOpen(false);
   }, [location]);
-
-  // Fetch only pending orders count for better performance (legacy)
-  const { data: pendingData } = useQuery<{ count: number }>({
-    queryKey: ["/api/admin/pending-orders-count"],
-    refetchInterval: 30000, // Refresh every 30 seconds - less frequent for better performance
-    refetchOnWindowFocus: true,
-    refetchOnMount: true,
-  });
 
   // Use count from notification hook for consistency
   const pendingOrdersCount = pendingCount;

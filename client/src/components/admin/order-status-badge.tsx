@@ -74,15 +74,13 @@ export function OrderStatusBadge({
             console.log("⚠️ No old data found for query");
             return oldData;
           }
-          if (!Array.isArray(oldData)) {
-            console.log("⚠️ Old data is not an array:", oldData);
-            return oldData;
-          }
-
-          console.log(`✅ Updating ${oldData.length} orders in cache`);
-          return oldData.map((order: any) =>
+          const update = (orders: any[]) => orders.map((order: any) =>
             order.id === orderId ? { ...order, status: newStatus } : order,
           );
+          if (Array.isArray(oldData)) return update(oldData);
+          if (Array.isArray(oldData.orders)) return { ...oldData, orders: update(oldData.orders) };
+          // Individual receipts also share the order query prefix.
+          return oldData.id === orderId ? { ...oldData, status: newStatus } : oldData;
         },
       );
 
@@ -90,6 +88,8 @@ export function OrderStatusBadge({
       await apiRequest("PATCH", `/api/orders/${orderId}/status`, {
         status: newStatus,
       });
+      void queryClient.invalidateQueries({ queryKey: ['/api/orders/pending-count'] });
+      void queryClient.invalidateQueries({ queryKey: ['stats'] });
 
       const statusText =
         forceLanguage === "mn"

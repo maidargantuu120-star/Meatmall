@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useLanguage } from "@/contexts/language-context";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
 import { Order, OrderItem, Product } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { Navbar } from "@/components/navbar";
@@ -86,23 +86,19 @@ export default function MyPage() {
 
   // Fetch user orders
   const {
-    data: orders,
+    data: orderPages,
     isLoading: isOrdersLoading,
     error: ordersError,
-  } = useQuery<OrderWithItems[]>({
-    queryKey: ["/api/user/orders"], // Changed queryKey to match API endpoint causing automatic invalidation when other components invalidate this key
-    queryFn: async () => {
-      try {
-        if (!user) return [];
-        return await apiRequest("GET", "/api/user/orders");
-      } catch (err) {
-        console.error("Error fetching orders:", err);
-        return [];
-      }
-    },
+    hasNextPage, fetchNextPage, isFetchingNextPage,
+  } = useInfiniteQuery<{ orders: OrderWithItems[]; nextBeforeId: number | null }>({
+    queryKey: ["/api/user/orders", user?.id],
+    initialPageParam: undefined as number | undefined,
+    queryFn: ({ pageParam }) => apiRequest('GET', '/api/user/orders/page' + (pageParam ? `?before=${pageParam}` : '')),
+    getNextPageParam: page => page.nextBeforeId ?? undefined,
     enabled: !!user,
     refetchOnMount: true,
   });
+  const orders = orderPages?.pages.flatMap(page => page.orders) || [];
 
   // Fetch user's generated meal kits
   const {
@@ -372,6 +368,9 @@ export default function MyPage() {
                         bankAccounts={bankAccounts}
                       />
                     ))}
+                      {hasNextPage && <Button variant="outline" className="w-full" disabled={isFetchingNextPage} onClick={() => void fetchNextPage()}>
+                        {isFetchingNextPage ? 'Ачаалж байна…' : 'Өмнөх захиалгуудыг харах'}
+                      </Button>}
                   </div>
                 )}
               </CardContent>

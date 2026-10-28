@@ -1,4 +1,4 @@
-import { Fragment, useState, useEffect } from "react";
+import { Fragment, useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -82,6 +82,18 @@ export default function AdminOrders() {
     orderIdParam ? parseInt(orderIdParam) : null,
   );
   const [orderDetailsOpen, setOrderDetailsOpen] = useState(!!orderIdParam);
+  const [beforeId, setBeforeId] = useState<number | undefined>(() => {
+    const id = Number(orderIdParam);
+    return Number.isSafeInteger(id) && id > 0 ? id + 1 : undefined;
+  });
+  const [previousPages, setPreviousPages] = useState<Array<number | undefined>>([]);
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const filtersMounted = useRef(false);
+  useEffect(() => { const timer = setTimeout(() => setDebouncedSearch(searchQuery), 350); return () => clearTimeout(timer); }, [searchQuery]);
+  useEffect(() => {
+    if (!filtersMounted.current) { filtersMounted.current = true; return; }
+    setBeforeId(undefined); setPreviousPages([]);
+  }, [debouncedSearch, statusFilter, startDate, endDate]);
 
   // SMS dialog state
   const [smsDialogOpen, setSmsDialogOpen] = useState(false);
@@ -127,14 +139,18 @@ export default function AdminOrders() {
   }
 
   // Fetch orders with date filters and improved refresh settings
-  const { data: orders = [], isLoading } = useQuery<Order[]>({
+  const { data: orderPage, isLoading, isError, refetch } = useQuery<{ orders: Order[]; nextBeforeId: number | null }>({
     queryKey: [
       "/api/orders",
       formatDateForQuery(startDate),
       formatDateForQuery(endDate),
+      'page', beforeId, debouncedSearch, statusFilter,
     ],
     queryFn: async () => {
       const params = new URLSearchParams();
+      if (beforeId) params.set('before', String(beforeId));
+      if (debouncedSearch.trim()) params.set('search', debouncedSearch.trim());
+      params.set('status', statusFilter);
       if (startDate) params.append("startDate", startDate.toISOString());
       if (endDate) {
         // Add one day to end date to include the whole day
@@ -144,15 +160,17 @@ export default function AdminOrders() {
       }
 
       const queryString = params.toString();
-      const url = `/api/orders${queryString ? `?${queryString}` : ""}`;
+      const url = `/api/orders/page${queryString ? `?${queryString}` : ""}`;
 
       return await apiRequest("GET", url);
     },
-    refetchInterval: 15000, // Refresh every 15 seconds for orders page
+    refetchInterval: 60000, // A bounded page while visible; push/new-ID checks refresh immediately.
+    refetchIntervalInBackground: false,
     refetchOnWindowFocus: true, // Refetch when window gains focus
     refetchOnMount: true, // Always refetch when component mounts
-    staleTime: 5000, // Consider data stale after 5 seconds
+    staleTime: 15000,
   });
+  const orders = orderPage?.orders || [];
 
   const deleteOrderMutation = useMutation({
     mutationFn: async (id: number) => {
@@ -179,24 +197,7 @@ export default function AdminOrders() {
   const selectedOrder = orders.find((order) => order.id === selectedOrderId);
 
   // Filtered orders based on search and status
-  const filteredOrders = orders.filter((order) => {
-    // Apply status filter
-    if (statusFilter !== "all" && order.status !== statusFilter) {
-      return false;
-    }
-
-    // Apply search filter (on order ID or customer name)
-    if (searchQuery) {
-      const orderIdString = formatOrderId(order.id);
-      const searchLower = searchQuery.toLowerCase();
-      return (
-        orderIdString.includes(searchLower) ||
-        order.customerName.toLowerCase().includes(searchLower)
-      );
-    }
-
-    return true;
-  });
+  const filteredOrders = orders; // Filters run on the server across the entire history.
 
   // Phones open the receipt in a dialog; PC expands it inline under the order's table row
   const isMobile = useIsMobile();
@@ -373,18 +374,6 @@ export default function AdminOrders() {
                       )}
                     >
                       {chip.label}
-                      <span
-                        className={cn(
-                          "rounded-full px-1.5 text-[11px] font-bold",
-                          statusFilter === chip.value
-                            ? "bg-white/20 text-white"
-                            : chip.value === "pending" && chip.count > 0
-                              ? "bg-brand text-white"
-                              : "bg-ink/5 text-ink/50",
-                        )}
-                      >
-                        {chip.count}
-                      </span>
                     </button>
                   ))}
                 </div>
@@ -411,14 +400,14 @@ export default function AdminOrders() {
               <div className="md:hidden">
                 <div className="mb-1 flex items-baseline justify-between border-b border-ink/10 pb-3 text-sm">
                   <span className="font-semibold text-ink">
-                    Нийт{" "}
+                    Энэ хуудсанд{" "}
                     <span className="font-display text-base font-extrabold text-brand">
                       {filteredOrders.length}
                     </span>{" "}
                     захиалга
                   </span>
                   <span className="text-ink/60">
-                    Нийт дүн{" "}
+                    Хуудасны дүн{" "}
                     <span className="font-display text-base font-extrabold text-brand">
                       {formatPrice(
                         filteredOrders.reduce(
@@ -652,14 +641,18 @@ export default function AdminOrders() {
                 </table>
               </div>
 
-              {/* Pagination (if needed) */}
-              {filteredOrders.length > 0 && (
-                <div className="mt-4 hidden md:flex justify-between items-center">
-                  <div className="text-sm text-gray-500">
-                    Нийт: {filteredOrders.length} захиалга
-                  </div>
+              {isError && <p role="alert" className="mt-4 text-sm text-red-700">Захиалгыг ачаалж чадсангүй. <button type="button" className="underline" onClick={() => void refetch()}>Дахин оролдох</button></p>}
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                <span className="text-sm text-gray-500">Энэ хуудсанд: {orders.length} захиалга · Хуудас {previousPages.length + 1}</span>
+                <div className="flex gap-2">
+                  <Button variant="outline" disabled={!previousPages.length || isLoading} onClick={() => {
+                    setBeforeId(previousPages[previousPages.length - 1]); setPreviousPages(pages => pages.slice(0, -1));
+                  }}>Өмнөх</Button>
+                  <Button variant="outline" disabled={!orderPage?.nextBeforeId || isLoading} onClick={() => {
+                    setPreviousPages(pages => [...pages, beforeId]); setBeforeId(orderPage!.nextBeforeId!);
+                  }}>Дараах</Button>
                 </div>
-              )}
+              </div>
             </div>
           </Card>
 

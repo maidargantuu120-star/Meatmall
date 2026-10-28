@@ -17,7 +17,9 @@ if ("serviceWorker" in navigator && !import.meta.env.VITE_API_BASE_URL) {
     if (event.data?.type !== 'MEATMALL_ORDER_UPDATE') return;
     // A received push immediately refreshes the shared new-order query (and MP3 watcher).
     void queryClient.invalidateQueries({ queryKey: ['/api/orders/pending-count'], exact: true });
-    void queryClient.invalidateQueries({ queryKey: ['/api/orders'], exact: true });
+    void queryClient.invalidateQueries({ queryKey: ['/api/orders/latest-id'], exact: true });
+    void queryClient.invalidateQueries({ queryKey: ['/api/orders'] });
+    void queryClient.invalidateQueries({ queryKey: ['stats'] });
   });
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("/sw.js").catch((error) => {
