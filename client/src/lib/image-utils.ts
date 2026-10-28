@@ -127,65 +127,63 @@ export async function compressImage(
   maxWidth = 1920,
   quality = 0.8,
 ): Promise<File> {
-  return new Promise((resolve, reject) => {
-    // If not an image, return original
-    if (!file.type.match(/image.*/)) {
-      resolve(file);
-      return;
-    }
-
-    const objectUrl = URL.createObjectURL(file);
-    {
-      const img = new Image();
-      img.onload = () => {
-        URL.revokeObjectURL(objectUrl);
-        const canvas = document.createElement("canvas");
-        let width = img.width;
-        let height = img.height;
-
-        // Resize if larger than maxWidth
-        const scale = Math.min(1, maxWidth / Math.max(width, height));
-        width = Math.max(1, Math.round(width * scale));
-        height = Math.max(1, Math.round(height * scale));
-
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) {
-          reject(new Error("Failed to get canvas context"));
-          return;
-        }
-
-        ctx.drawImage(img, 0, 0, width, height);
-
-        // Convert to WebP
-        canvas.toBlob(
-          (blob) => {
-            if (!blob || blob.type !== 'image/webp') {
-              reject(new Error("Canvas to Blob conversion failed"));
-              return;
-            }
-
-            // Create new File from Blob with .webp extension
-            const fileName = file.name.replace(/\.[^/.]+$/, "") + ".webp";
-            const newFile = new File([blob], fileName, {
-              type: "image/webp",
-              lastModified: Date.now(),
-            });
-
-            resolve(newFile);
-          },
-          "image/webp",
-          quality,
-        );
-      };
-      img.onerror = () => {
-        URL.revokeObjectURL(objectUrl);
-        reject(new Error('Unable to decode image'));
-      };
+  if (!file.size || (!file.type.startsWith('image/') && !/\.(jpe?g|png|gif|webp)$/i.test(file.name))) {
+    throw new Error('JPG, PNG, GIF эсвэл WebP зургийн файл сонгоно уу.');
+  }
+  const limit = Math.max(1, Math.min(4096, Number.isFinite(maxWidth) ? maxWidth : 1920));
+  const normalizedQuality = Math.max(0, Math.min(1, Number.isFinite(quality) ? quality : 0.8));
+  const objectUrl = URL.createObjectURL(file);
+  const img = new Image();
+  let canvas: HTMLCanvasElement | undefined;
+  try {
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve();
+      img.onerror = () => reject(new Error('Зургийг нээж чадсангүй. Өөр JPG эсвэл PNG зураг сонгоно уу.'));
       img.src = objectUrl;
+    });
+    const width = img.naturalWidth || img.width;
+    const height = img.naturalHeight || img.height;
+    if (!width || !height) throw new Error('Зургийн хэмжээ буруу байна. Өөр зураг сонгоно уу.');
+    // Avoid re-encoding an already optimized result when another upload path reuses it.
+    if (Math.max(width, height) <= limit && await isOptimizedWebp(file)) return file;
+    const scale = Math.min(1, limit / Math.max(width, height));
+    canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(width * scale));
+    canvas.height = Math.max(1, Math.round(height * scale));
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('Зураг боловсруулах санах ой хүрэлцэхгүй байна. Жижиг зураг сонгоод дахин оролдоно уу.');
+    try { ctx.drawImage(img, 0, 0, canvas.width, canvas.height); }
+    catch { throw new Error('Зургийг боловсруулж чадсангүй. Жижиг JPG эсвэл PNG зураг сонгоно уу.'); }
+
+    let blob = await new Promise<Blob | null>(resolve => {
+      try { canvas!.toBlob(resolve, 'image/webp', normalizedQuality); }
+      catch { resolve(null); }
+    });
+    if (!blob || !await isOptimizedWebp(blob)) {
+      // Unsupported canvas types silently return PNG in Safari. Encode actual WebP
+      // locally instead of relabelling PNG bytes or relaxing server validation.
+      try {
+        const { encodeWebpPixels } = await import('./webp-encoder');
+        blob = await encodeWebpPixels(ctx.getImageData(0, 0, canvas.width, canvas.height), normalizedQuality);
+      } catch {
+        throw new Error('Зургийг боловсруулж чадсангүй. Интернэт холболтоо шалгаад дахин оролдох эсвэл жижиг JPG/PNG зураг сонгоно уу.');
+      }
     }
-  });
+    if (!await isOptimizedWebp(blob)) throw new Error('Зургийн файл буруу эсвэл 5 MB-ээс их байна. Жижиг зураг сонгоно уу.');
+    return new File([blob], file.name.replace(/\.[^/.]+$/, '') + '.webp', { type: 'image/webp', lastModified: Date.now() });
+  } finally {
+    img.onload = null;
+    img.onerror = null;
+    URL.revokeObjectURL(objectUrl);
+    if (canvas) { canvas.width = 0; canvas.height = 0; }
+  }
+}
+
+async function isOptimizedWebp(blob: Blob): Promise<boolean> {
+  if (blob.type !== 'image/webp' || !blob.size || blob.size > 5 * 1024 * 1024) return false;
+  const bytes = new Uint8Array(await blob.slice(0, 12).arrayBuffer());
+  return bytes.length === 12 && String.fromCharCode(...Array.from(bytes.slice(0, 4))) === 'RIFF'
+    && String.fromCharCode(...Array.from(bytes.slice(8, 12))) === 'WEBP';
 }
 
 /**
@@ -205,10 +203,12 @@ export async function generateThumbnail(file: File, size = 300): Promise<File> {
  */
 export async function uploadMedia(
   file: File,
+  options: { optimized?: boolean } = {},
 ): Promise<{ url: string; id?: number }> {
   try {
     const formData = new FormData();
-    formData.append("file", await compressImage(file));
+    if (options.optimized && !await isOptimizedWebp(file)) throw new Error('Боловсруулсан WebP зургийн файл буруу байна.');
+    formData.append("file", options.optimized ? file : await compressImage(file));
 
     const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "";
     const response = await fetch(`${apiBaseUrl}/api/media`, {

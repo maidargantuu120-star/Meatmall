@@ -70,11 +70,10 @@ export default function AdminDashboard() {
 
   // Fetch recent orders
   const { data: orders = [], isLoading: isOrdersLoading } = useQuery<any[]>({
-    queryKey: ["orders"],
+    queryKey: ["/api/orders", "recent"],
     queryFn: async () => {
       // We can reuse the orders endpoint, maybe add a limit query param later
-      // For now fetching all and slicing is fine for low volume
-      return await apiRequest("GET", "/api/orders");
+      return await apiRequest("GET", "/api/orders?limit=5");
     },
   });
 

@@ -1,4 +1,3 @@
-import { useQuery } from "@tanstack/react-query";
 import { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { ArrowLeft } from "lucide-react";
@@ -24,15 +23,7 @@ export function AdminHeader({
   // Use order notifications hook for vibration alerts
   const { pendingCount } = useOrderNotifications();
 
-  // Legacy query for fallback (keeping for compatibility)
-  const { data: pendingData } = useQuery<{ count: number }>({
-    queryKey: ["/api/admin/pending-orders-count"],
-    refetchInterval: 30000, // Refresh every 30 seconds - less frequent for better performance
-    refetchOnWindowFocus: true,
-    refetchOnMount: true,
-  });
-
-  const pendingOrdersCount = pendingCount || pendingData?.count || 0;
+  const pendingOrdersCount = pendingCount;
 
   return (
     <header className="bg-white rounded-2xl shadow-card border-l-4 border-brand">

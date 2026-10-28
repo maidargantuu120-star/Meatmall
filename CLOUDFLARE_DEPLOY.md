@@ -42,11 +42,64 @@ check stale-chunk recovery and the fallback in a disposable local browser.
 
 Uploads are binary multipart files. The browser limits both image dimensions,
 encodes WebP and sends the file to `/api/media`. The API verifies the WebP signature,
-rejects empty/oversized files (5 MB maximum), stores a UUID-named object in R2,
+rejects empty/oversized files (5 MB maximum), stores a SHA-256-named object in R2,
 and saves only `/uploads/...webp` URLs and metadata in D1.
 JSON and multipart writes containing inline `data:image/` strings are rejected.
+Identical new uploads reuse the same object and media record. Existing UUID URLs
+remain valid; no existing files are removed. Public images use a best-effort
+Cloudflare edge cache, keyed by their path (irrelevant query strings are ignored).
+Cache hits avoid R2 reads; eviction or an unavailable cache falls back to R2.
 R2 objects are served through the API with immutable cache headers; public bucket
 access and public development URLs are unnecessary.
+
+Safari can decode WebP while returning PNG from `canvas.toBlob('image/webp')`.
+The shared image utility now validates the actual output signature and lazily
+loads `@jsquash/webp` when native WebP encoding fails, returns null, or returns
+PNG. Standard and SIMD WASM assets are bundled on our own origin; there is no
+external image service or paid conversion. The server's WebP/5 MB validation is
+unchanged. Canvas memory and object URLs are released on success and failure.
+Product thumbnails resize the optimized image, and optimized uploads skip a
+second conversion. Other image upload screens share the same compatibility fix.
+
+Run `node scripts/test-image-processing.mjs` after typecheck/build. It covers
+native/unsupported/null/throwing encoders, actual WebP signatures, aspect ratio,
+optimized uploads and failures, plus real non-SIMD WASM encoding. For browser QA,
+simulate Safari's PNG return in a disposable local server and save a product:
+both main image and thumbnail must survive the R2 round trip as actual WebP.
+Never add test products to the production catalog.
+
+## D1 and R2 efficiency
+
+Apply `migrations/0005_query_indexes.sql` to the intended production DB before
+deploying the efficiency changes. This adds lookup indexes only, including
+customer/status order history and order-item lookups. It does not create triggers,
+counters, alter totals, or remove historical orders. Indexes consume some storage
+and additional writes in exchange for fewer rows read. They are never created
+automatically on customer requests.
+
+The shared administrator notification hook checks only the newest indexed order
+ID every 30 seconds while visible. Pending count is fetched on first load, focus,
+new orders, status changes and push updates, rather than scanning history every
+five seconds. The dashboard fetches five recent orders. Admin order history uses
+50-order cursor pages; customer history uses 20-order pages and a Load more button.
+Search/status/date filters run across history before the page limit. Order IDs
+and Mongolian names are supported; substring search is literal (not a LIKE/GLOB
+pattern) to avoid D1's 50-byte pattern limit. Each order's items stay together.
+Legacy unpaged endpoints preserve their complete response for older clients;
+the current storefront and administrator UI use the bounded endpoints.
+The open administrator order page refreshes its current page every 60 seconds;
+push events and this administrator's mutations also invalidate relevant queries.
+
+After typecheck/build, run `node scripts/test-data-efficiency.mjs` against its
+disposable Miniflare DB/R2. It seeds 10,000 orders, compares rows read, checks all
+200 administrator pages and all 5,000 orders belonging to one customer, and
+verifies access control, search, duplicate image reuse and edge-cache bytes.
+It never reads or mutates production, and sends no email.
+
+Free use is based on consumption, not a guaranteed number of years. Current
+limits and remaining capacity must be checked in Cloudflare/Brevo before making
+capacity promises. Keep original order/receipt data and original image URLs;
+this optimization deliberately performs no automatic deletion or paid upgrade.
 
 ## Verification
 

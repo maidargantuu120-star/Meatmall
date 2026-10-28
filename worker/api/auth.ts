@@ -594,4 +594,14 @@ app.get('/user/orders', async (c) => {
     return c.json(orders);
 });
 
+app.get('/user/orders/page', async (c) => {
+    const user = c.get('user');
+    if (!user) return c.json({ message: 'Unauthorized' }, 401);
+    c.header('Cache-Control', 'no-store');
+    const beforeId = c.req.query('before') ? Number(c.req.query('before')) : undefined;
+    if (beforeId !== undefined && (!Number.isSafeInteger(beforeId) || beforeId < 1)) return c.json({ message: 'Invalid cursor' }, 400);
+    const rows = await c.get('storage').getOrdersWithItems(undefined, undefined, { userId: user.id, limit: 21, beforeId });
+    return c.json({ orders: rows.slice(0, 20), nextBeforeId: rows.length > 20 ? rows[19].id : null });
+});
+
 export default app;

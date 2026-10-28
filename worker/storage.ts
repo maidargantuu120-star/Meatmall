@@ -23,7 +23,7 @@ import {
     reviews, type Review, type InsertReview
 } from "@shared/schema";
 import { DrizzleDB } from "./db";
-import { eq, desc, and, asc, not, gte, lte, sql } from "drizzle-orm";
+import { eq, desc, and, asc, not, gte, lte, lt, inArray, sql } from "drizzle-orm";
 import { scrypt, randomBytes } from "node:crypto";
 import { promisify } from "node:util";
 
@@ -41,7 +41,7 @@ export interface IStorage {
 
     // Order operations
     getOrders(startDate?: Date, endDate?: Date): Promise<Order[]>;
-    getOrdersWithItems(startDate?: Date, endDate?: Date): Promise<(Order & { items: (OrderItem & { product: Product })[] })[]>;
+    getOrdersWithItems(startDate?: Date, endDate?: Date, options?: OrderListOptions): Promise<(Order & { items: (OrderItem & { product: Product })[] })[]>;
     getOrder(id: number): Promise<Order | undefined>;
     getOrderWithItems(id: number): Promise<(Order & { items: (OrderItem & { product: Product })[] }) | undefined>;
     createOrder(order: InsertOrder, items: InsertOrderItem[], receipt?: OrderEmailReceipt): Promise<Order>;
@@ -185,6 +185,18 @@ export interface IStorage {
 
     // Storage operations
     uploadFile(bucket: string, path: string, file: File): Promise<string>;
+}
+
+export type OrderListOptions = { limit?: number; beforeId?: number; search?: string; status?: string; userId?: number };
+
+// SQLite lower() covers ASCII only. Fold Mongolian/Cyrillic explicitly, then
+// use literal substring matching: D1 limits LIKE/GLOB patterns to 50 bytes.
+function foldedOrderName() {
+    let expression = sql`${orders.customerName}`;
+    for (const upper of 'АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯӨҮ') {
+        expression = sql`replace(${expression}, ${upper}, ${upper.toLowerCase()})`;
+    }
+    return sql`lower(${expression})`;
 }
 
 export class D1Storage implements IStorage {
@@ -335,7 +347,7 @@ export class D1Storage implements IStorage {
         }
     }
 
-    async getOrdersWithItems(startDate?: Date, endDate?: Date): Promise<(Order & { items: (OrderItem & { product: Product })[] })[]> {
+    async getOrdersWithItems(startDate?: Date, endDate?: Date, options: OrderListOptions = {}): Promise<(Order & { items: (OrderItem & { product: Product })[] })[]> {
         // Build conditions for date filtering
         const conditions = [];
         if (startDate) {
@@ -344,6 +356,19 @@ export class D1Storage implements IStorage {
         if (endDate) {
             conditions.push(lte(orders.createdAt, endDate));
         }
+        if (options.beforeId) conditions.push(lt(orders.id, options.beforeId));
+        if (options.userId !== undefined) conditions.push(eq(orders.userId, options.userId));
+        if (options.status && options.status !== 'all') conditions.push(eq(orders.status, options.status));
+        if (options.search) {
+            const id = options.search.match(/^(?:#?ORD-)?0*(\d+)$/i);
+            conditions.push(id ? eq(orders.id, Number(id[1])) : sql`instr(${foldedOrderName()}, ${options.search.toLowerCase()}) > 0`);
+        }
+        // Select a bounded page of order IDs BEFORE joining line items, so an
+        // order with many items cannot be split or make older orders disappear.
+        const ids = options.limit === undefined ? undefined : await this.db.select({ id: orders.id }).from(orders)
+            .where(conditions.length ? and(...conditions) : undefined)
+            .orderBy(desc(orders.id)).limit(Math.min(100, Math.max(1, options.limit)));
+        if (ids && !ids.length) return [];
 
         // Use a single optimized query with joins to get all data at once
         const query = this.db.select({
@@ -381,12 +406,11 @@ export class D1Storage implements IStorage {
             .from(orders)
             .leftJoin(orderItems, eq(orders.id, orderItems.orderId))
             .leftJoin(products, eq(orderItems.productId, products.id))
-            .orderBy(desc(orders.createdAt));
+            .orderBy(desc(orders.id));
 
-        // Apply date filtering if conditions exist
-        const results = conditions.length > 0
-            ? await query.where(conditions.length > 1 ? and(...conditions) : conditions[0])
-            : await query;
+        // Legacy clients retain their complete history; current clients always
+        // request bounded pages. Never truncate a legacy response silently.
+        const results = await query.where(ids ? inArray(orders.id, ids.map(row => row.id)) : conditions.length ? and(...conditions) : undefined);
 
         // Group results by order
         const orderMap = new Map<number, Order & { items: (OrderItem & { product: Product })[] }>();
@@ -591,38 +615,14 @@ export class D1Storage implements IStorage {
     }
 
     async getUserOrders(userId: number): Promise<(Order & { items: (OrderItem & { product: Product })[] })[]> {
-        const userOrders = await this.db.select()
-            .from(orders)
-            .where(eq(orders.userId, userId))
-            .orderBy(desc(orders.createdAt));
-
-        const result: (Order & { items: (OrderItem & { product: Product })[] })[] = [];
-
-        for (const order of userOrders) {
-            const items = await this.db.select()
-                .from(orderItems)
-                .where(eq(orderItems.orderId, order.id));
-
-            const itemsWithProducts: (OrderItem & { product: Product })[] = [];
-
-            for (const item of items) {
-                const product = await this.getProduct(item.productId);
-                if (product) {
-                    itemsWithProducts.push({ ...item, product });
-                }
-            }
-
-            result.push({ ...order, items: itemsWithProducts });
-        }
-
-        return result;
+        return this.getOrdersWithItems(undefined, undefined, { userId });
     }
 
     async getPendingOrdersCount(): Promise<number> {
-        const result = await this.db.select()
+        const [result] = await this.db.select({ count: sql<number>`count(*)` })
             .from(orders)
             .where(eq(orders.status, 'pending'));
-        return result.length;
+        return Number(result?.count || 0);
     }
 
     // Highest order id so far; the admin panel uses it to detect newly placed orders
@@ -810,6 +810,8 @@ export class D1Storage implements IStorage {
     }
 
     async createMediaItem(media: InsertMediaItem): Promise<MediaItem> {
+        const [existing] = await this.db.select().from(mediaLibrary).where(eq(mediaLibrary.url, media.url)).limit(1);
+        if (existing) return existing;
         const result = await this.db.insert(mediaLibrary).values(media).returning();
         return result[0];
     }
@@ -1323,14 +1325,17 @@ export class D1Storage implements IStorage {
 
     async uploadFile(bucket: string, path: string, file: File): Promise<string> {
         await validateImageFile(file);
-        path = `${path.split('/')[0]}/${crypto.randomUUID()}.webp`;
+        const bytes = await file.arrayBuffer();
+        const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', bytes));
+        path = `${path.split('/')[0]}/${Array.from(digest).map(value => value.toString(16).padStart(2,'0')).join('')}.webp`;
         if (!this.bucket) {
             console.error("R2 Bucket not configured");
             throw new Error("R2 Bucket not configured");
         }
 
         try {
-            await this.bucket.put(path, await file.arrayBuffer(), {
+            if (await this.bucket.head(path)) return `/uploads/${path}`;
+            await this.bucket.put(path, bytes, {
                 httpMetadata: { contentType: file.type }
             });
 
