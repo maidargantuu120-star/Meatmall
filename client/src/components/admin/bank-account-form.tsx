@@ -61,36 +61,30 @@ export function BankAccountForm({
   const onSubmit = async (data: BankAccountFormValues) => {
     setIsSubmitting(true);
     try {
-      console.log("Submitting bank account data:", data);
-
       // Process null or empty string
       const processedData = {
         ...data,
         description: data.description === "" ? null : data.description,
       };
 
-      console.log("Processed data for submission:", processedData);
-
       if (bankAccount) {
         // Update existing bank account
-        const response = await apiRequest(
-          "PUT",
+        await apiRequest(
+          "PATCH",
           `/api/bank-accounts/${bankAccount.id}`,
           processedData
         );
-        console.log("Update bank account response:", response);
         toast({
           title: "Банкны данс шинэчлэгдлээ",
           description: "Банкны дансны мэдээлэл амжилттай шинэчлэгдлээ.",
         });
       } else {
         // Create new bank account
-        const response = await apiRequest(
+        await apiRequest(
           "POST",
           "/api/bank-accounts",
           processedData
         );
-        console.log("Create bank account response:", response);
         toast({
           title: "Банкны данс үүсгэгдлээ",
           description: "Шинэ банкны данс амжилттай үүсгэгдлээ.",

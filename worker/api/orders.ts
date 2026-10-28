@@ -299,7 +299,8 @@ app.post('/bank-accounts', requireAdmin, async (c) => {
     return c.json(account, 201);
 });
 
-app.patch('/bank-accounts/:id', requireAdmin, async (c) => {
+// Keep PUT for older cached administrator screens; both methods require admin.
+app.on(['PATCH', 'PUT'], '/bank-accounts/:id', requireAdmin, async (c) => {
     const storage = c.get('storage');
     const id = parseInt(c.req.param('id'));
     const body = await c.req.json();
