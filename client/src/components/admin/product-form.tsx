@@ -162,14 +162,14 @@ export function ProductForm({
           const compressedFile = await compressImage(selectedFile, 1200); // 1200px is enough for product details
 
           // 2. Generate thumbnail WebP
-          const thumbnailFile = await generateThumbnail(selectedFile, 300);
+          const thumbnailFile = await generateThumbnail(compressedFile, 300);
 
           logger.custom("📤", "Uploading images...");
 
           // 3. Upload both
           const [imageResult, thumbnailResult] = await Promise.all([
-            uploadMedia(compressedFile),
-            uploadMedia(thumbnailFile),
+            uploadMedia(compressedFile, { optimized: true }),
+            uploadMedia(thumbnailFile, { optimized: true }),
           ]);
 
           imageUrl = imageResult.url;

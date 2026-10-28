@@ -85,7 +85,7 @@ export default function LoginSettingsPage() {
       const compressedFile = await compressImage(file, 1920, 0.85);
 
       logger.custom("📤", "Uploading to R2...");
-      const result = await uploadMedia(compressedFile);
+      const result = await uploadMedia(compressedFile, { optimized: true });
 
       const currentImages = loginImages.trim() ? loginImages.split("\n") : [];
       setLoginImages([...currentImages, result.url].join("\n"));

@@ -48,6 +48,22 @@ JSON and multipart writes containing inline `data:image/` strings are rejected.
 R2 objects are served through the API with immutable cache headers; public bucket
 access and public development URLs are unnecessary.
 
+Safari can decode WebP while returning PNG from `canvas.toBlob('image/webp')`.
+The shared image utility now validates the actual output signature and lazily
+loads `@jsquash/webp` when native WebP encoding fails, returns null, or returns
+PNG. Standard and SIMD WASM assets are bundled on our own origin; there is no
+external image service or paid conversion. The server's WebP/5 MB validation is
+unchanged. Canvas memory and object URLs are released on success and failure.
+Product thumbnails resize the optimized image, and optimized uploads skip a
+second conversion. Other image upload screens share the same compatibility fix.
+
+Run `node scripts/test-image-processing.mjs` after typecheck/build. It covers
+native/unsupported/null/throwing encoders, actual WebP signatures, aspect ratio,
+optimized uploads and failures, plus real non-SIMD WASM encoding. For browser QA,
+simulate Safari's PNG return in a disposable local server and save a product:
+both main image and thumbnail must survive the R2 round trip as actual WebP.
+Never add test products to the production catalog.
+
 ## Verification
 
 The worker prepares the order-email outbox with idempotent DDL before saving an
