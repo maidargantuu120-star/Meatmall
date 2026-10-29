@@ -7,6 +7,7 @@ import { notifyAdmins, notifyUser, orderNo, STATUS_NOTICES, won } from '../push'
 import { deliverOrderEmail, emailConfigured, renderOrderEmail } from '../email';
 import type { OrderEmailReceipt } from '../../shared/order-email';
 import { destinationParts, readShippingRates, shippingQuote } from '../../shared/shipping';
+import { linePrice, packKgOf } from '../../shared/pack';
 import { ensureOrderEmailStore } from '../order-email-store';
 
 type Env = {
@@ -163,9 +164,15 @@ app.post('/orders', async (c) => {
             if (!product || quantity > product.stock || quantity < (product.minOrderQuantity || 1)) {
                 return c.json({ message: 'Product unavailable or invalid quantity' }, 400);
             }
-            validatedItems.push({ productId, quantity, price: product.price, orderId: 0 });
-            receiptItems.push({ name: product.name, quantity, price: product.price, amount: product.price * quantity });
-            subtotal += product.price * quantity;
+            // Pack products: price is per pack and the kg quantity must be whole packs
+            const packKg = packKgOf(product);
+            if (packKg > 1 && quantity % packKg !== 0) {
+                return c.json({ message: `${product.name}: ${packKg}кг-аар захиална уу` }, 400);
+            }
+            const amount = linePrice(product.price, quantity, packKg);
+            validatedItems.push({ productId, quantity, price: product.price, packKg, orderId: 0 });
+            receiptItems.push({ name: product.name, quantity, price: product.price, amount, packKg });
+            subtotal += amount;
         }
         const shipping = await storage.getSiteSettingByKey('shipping_fee');
         for (const field of ['customerName', 'customerPhone', 'customerAddress']) {

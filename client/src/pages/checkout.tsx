@@ -8,7 +8,8 @@ import { Footer } from "@/components/footer";
 import { useCart } from "@/hooks/use-cart";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { cn, formatPrice, isBulkyMeat } from "@/lib/utils";
+import { cn, formatPrice } from "@/lib/utils";
+import { packKgOf, priceUnitLabel } from "@shared/pack";
 import { getFullImageUrl } from "@/lib/image-utils";
 import { useQuery } from "@tanstack/react-query";
 import { queryClient } from "../lib/queryClient";
@@ -753,9 +754,8 @@ function CheckoutCartItem({ item }: { item: CartItem }) {
   const { updateQuantity, removeItem } = useCart();
   const { t } = useLanguage();
   const [imageFailed, setImageFailed] = useState(false);
-  // Bulky cuts are sold in 4kg steps (same rule as the cart page)
-  const bulky = isBulkyMeat(item.name);
-  const step = bulky ? 4 : 1;
+  // Pack products move one pack (packKg kg) per step (same rule as the cart page)
+  const step = packKgOf(item);
   const showImage = !!item.imageUrl && !imageFailed;
 
   return (
@@ -789,7 +789,7 @@ function CheckoutCartItem({ item }: { item: CartItem }) {
         {/* Price and stepper share one centre line; the row ends level with the photo */}
         <div className="mt-auto flex items-center justify-between gap-2 pt-2">
           <p className="text-sm font-semibold text-ink/60">
-            {formatPrice(item.price)} {bulky ? "/ 4кг" : "/ кг"}
+            {formatPrice(item.price)} {priceUnitLabel(step)}
           </p>
           <div className="flex items-center rounded-full border border-ink/15 bg-white">
             <button

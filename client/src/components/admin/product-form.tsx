@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/select";
 import { MEAT_CATEGORIES } from "@/lib/constants";
 import { PRODUCT_BADGE_MAX_LENGTH, PRODUCT_MAX_IMAGES, Product, insertProductSchema } from "@shared/schema";
+import { PRODUCT_MAX_PACK_KG, cleanPackKg, packKgOf, priceUnitLabel } from "@shared/pack";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -75,6 +76,8 @@ const productFormSchema = insertProductSchema.extend({
     .string()
     .min(1, "Хамгийн бага захиалгын хэмжээ оруулна уу")
     .default("1"),
+  // kg per sales pack as typed; 1 (or empty) = sold by the kg
+  packKg: z.string().optional(),
   nameRu: z.string().optional(),
   nameEn: z.string().optional(),
   descriptionRu: z.string().optional(),
@@ -129,6 +132,7 @@ export function ProductForm({
     minOrderQuantity: product
       ? product.minOrderQuantity?.toString() || "1"
       : "1",
+    packKg: String(product ? packKgOf(product) : 1),
   };
 
   // Load the stored photos when a different product is opened for editing
@@ -178,6 +182,8 @@ export function ProductForm({
     resolver: zodResolver(productFormSchema),
     defaultValues,
   });
+  // Price label follows the pack size ("/ кг" or "/ 4кг")
+  const packKg = cleanPackKg(form.watch("packKg"));
 
   // Handle file selection (several files at once; extra files beyond the limit are skipped)
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -253,6 +259,7 @@ export function ProductForm({
         price: parseFloat(data.price),
         stock: data.stock ?? 999,
         minOrderQuantity: parseFloat(data.minOrderQuantity || "1"),
+        packKg: cleanPackKg(data.packKg),
         imageUrl,
         thumbnailUrl,
         galleryImages,
@@ -410,7 +417,7 @@ export function ProductForm({
         </div>
 
         {/* Category, Price, and Min Order Quantity - Grid for tablet and up, stack for mobile */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
           <FormField
             control={form.control}
             name="category"
@@ -462,7 +469,9 @@ export function ProductForm({
             name="price"
             render={({ field }) => (
               <FormItem>
-                <FormLabel className="text-sm font-medium">Үнэ (₩)</FormLabel>
+                <FormLabel className="text-sm font-medium">
+                  Үнэ (₩ {priceUnitLabel(packKg)})
+                </FormLabel>
                 <FormControl>
                   <Input
                     type="number"
@@ -472,6 +481,32 @@ export function ProductForm({
                     className="text-base md:text-normal p-2 h-11 md:h-10"
                   />
                 </FormControl>
+                <FormMessage className="text-xs md:text-sm" />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="packKg"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-sm font-medium">Багцын жин (кг)</FormLabel>
+                <FormControl>
+                  <Input
+                    type="number"
+                    inputMode="numeric"
+                    step="1"
+                    min="1"
+                    max={PRODUCT_MAX_PACK_KG}
+                    placeholder="1"
+                    {...field}
+                    className="text-base md:text-normal p-2 h-11 md:h-10"
+                  />
+                </FormControl>
+                <FormDescription className="text-xs">
+                  1 = кг-аар зарна. Зөвхөн 4кг багцаар зарах бол 4 гэж оруулаад үнийг 1 багцын үнээр бичнэ.
+                </FormDescription>
                 <FormMessage className="text-xs md:text-sm" />
               </FormItem>
             )}

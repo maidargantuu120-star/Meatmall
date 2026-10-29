@@ -6,7 +6,8 @@ export type OrderEmailReceipt = {
   customerAddress: string;
   transferAccountHolder: string;
   placedAt: string;
-  items: { name: string; quantity: number; price: number; amount: number }[];
+  // packKg > 1: price is per pack of that many kg (quantity is still in kg)
+  items: { name: string; quantity: number; price: number; amount: number; packKg?: number }[];
   subtotal: number;
   shippingFee: number;
   shippingBaseFee?: number;

@@ -6,7 +6,6 @@ import App from "./App";
 import "./index.css";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
-import { CartProvider } from "@/hooks/use-cart";
 
 import { ErrorBoundary } from "./components/ui/error-boundary";
 
@@ -30,10 +29,9 @@ if ("serviceWorker" in navigator && !import.meta.env.VITE_API_BASE_URL) {
 
 createRoot(document.getElementById("root")!).render(
   <ErrorBoundary>
+    {/* The cart provider lives once, inside App (a second one here raced it over localStorage) */}
     <QueryClientProvider client={queryClient}>
-      <CartProvider>
-        <App />
-      </CartProvider>
+      <App />
     </QueryClientProvider>
   </ErrorBoundary>,
 );

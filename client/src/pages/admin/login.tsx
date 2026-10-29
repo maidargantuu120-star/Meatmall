@@ -117,9 +117,16 @@ export default function AdminLogin() {
       setLocation("/admin");
     } catch (error: any) {
       console.error("Login error:", error);
+      // apiRequest errors read "401: {json}"; show only the server's message
+      let serverMessage: string | undefined;
+      try {
+        serverMessage = JSON.parse(String(error?.message ?? "").replace(/^\d{3}:\s*/, "")).message;
+      } catch {
+        // not a JSON error body
+      }
       toast({
         title: "Нэвтрэх үед алдаа гарлаа",
-        description: error.message || "Нэвтрэх нэр эсвэл нууц үг буруу байна.",
+        description: serverMessage || "Нэвтрэх нэр эсвэл нууц үг буруу байна.",
         variant: "destructive",
       });
       setIsLoading(false);

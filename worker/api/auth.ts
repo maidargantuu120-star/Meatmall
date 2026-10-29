@@ -8,6 +8,7 @@ import { requireAdmin } from '../middleware';
 import { adminPasswordChangeSchema } from '../../shared/admin-password';
 import { signToken } from '../token';
 import { beginGoogleOAuth, consumeGoogleOAuth, googleAuthOrigin } from '../google-oauth';
+import { LOGIN_FAILED_MESSAGE, LOGIN_LOCKED_MESSAGE, loginAccountKey, loginLocked, recordLoginFailure } from '../login-limit';
 // import { sendWelcomeEmail } from '../../server/email'; // Removed currently incompatible import
 // validated: server/email uses nodemailer which uses 'net' etc. Might work with nodejs_compat.
 // If it fails, we'll need to stub it or use an email service API (MailChannels is standard for Cloudflare).
@@ -22,6 +23,14 @@ type Env = {
 };
 
 const app = new Hono<Env>();
+
+const clientIp = (c: any): string => c.req.header('CF-Connecting-IP') || 'local';
+
+// Input with "@" is an email first (new usernames cannot contain "@"); older usernames may still have one
+async function findLoginUser(storage: IStorage, login: string) {
+    if (login.includes('@')) return (await storage.getUserByEmail(login)) ?? (await storage.getUserByUsername(login));
+    return storage.getUserByUsername(login);
+}
 
 // Helper to set session cookie
 async function setUserSession(c: any, userId: number) {
@@ -58,39 +67,20 @@ app.post('/login', async (c) => {
 
         const { username, password } = body;
 
-        console.log(`[Login] Attempt for username: ${username}`);
-
-        if (!username || !password) {
+        if (typeof username !== 'string' || typeof password !== 'string' || !username || !password) {
             return c.json({ success: false, message: "Username and password are required" }, 400);
         }
 
-        // Find user
-        let user = await storage.getUserByUsername(username);
-        if (!user && username.includes('@')) {
-            user = await storage.getUserByEmail(username);
+        const ip = clientIp(c);
+        const account = loginAccountKey(username);
+        if (await loginLocked(c.env, ip, account)) {
+            return c.json({ success: false, message: LOGIN_LOCKED_MESSAGE }, 429);
         }
 
-        if (!user) {
-            return c.json({ success: false, message: "User not found" }, 401);
-        }
-
-        // Verify password
-        let isValid = false;
-        try {
-            isValid = await comparePasswords(password, user.password);
-        } catch (e: any) {
-            return c.json({
-                success: false,
-                message: "Password verification crashed",
-                error: e.message
-            }, 500);
-        }
-
-        if (!isValid) {
-            return c.json({
-                success: false,
-                message: "Invalid password",
-            }, 401);
+        const user = await findLoginUser(storage, username);
+        if (!user || !await comparePasswords(password, user.password)) {
+            await recordLoginFailure(c.env, ip, account);
+            return c.json({ success: false, message: LOGIN_FAILED_MESSAGE }, 401);
         }
 
         // Set session (cookie for web) + token (for native app)
@@ -102,12 +92,7 @@ app.post('/login', async (c) => {
         return c.json({ ...userWithoutPassword, token });
     } catch (error: any) {
         console.error('[Login] Unexpected error:', error);
-        return c.json({
-            success: false,
-            message: "Internal Server Error",
-            error: error.message,
-            stack: error.stack
-        }, 500);
+        return c.json({ success: false, message: "Internal Server Error" }, 500);
     }
 });
 
@@ -122,17 +107,18 @@ app.post('/admin/login', async (c) => {
 
         const { username, password } = body;
 
-        console.log(`[Admin Login] Attempt for username: ${username}`);
-
         if (typeof username !== 'string' || typeof password !== 'string' || !username || !password) {
             return c.json({ success: false, message: "Username and password are required" }, 400);
         }
 
-        // Find user
-        let user = await storage.getUserByUsername(username);
-        if (!user && username.includes('@')) {
-            user = await storage.getUserByEmail(username);
+        const ip = clientIp(c);
+        const account = loginAccountKey(username);
+        if (await loginLocked(c.env, ip, account)) {
+            return c.json({ success: false, message: LOGIN_LOCKED_MESSAGE }, 429);
         }
+
+        // Admin accounts only: a member account never answers an admin sign-in
+        let user = await storage.getAdminByLogin(username);
 
         const envAdminUsername = c.env.ADMIN_USERNAME || 'admin';
         // No built-in fallback password: without ADMIN_PASSWORD set, this shortcut is off
@@ -153,32 +139,9 @@ app.post('/admin/login', async (c) => {
                     return c.json({ success: false, message: "Could not create admin user" }, 500);
                 }
             }
-        } else {
-            if (!user) {
-                return c.json({ success: false, message: "User not found" }, 401);
-            }
-
-            // Verify password
-            let isValid = false;
-            try {
-                isValid = await comparePasswords(password, user.password);
-            } catch (e: any) {
-                return c.json({
-                    success: false,
-                    message: "Password verification crashed",
-                    error: e.message
-                }, 500);
-            }
-
-            if (!isValid) {
-                return c.json({ success: false, message: "Invalid password" }, 401);
-            }
-
-            // Check Admin Status
-            if (!user.isAdmin) {
-                console.log(`[Admin Login] User ${username} is not an admin`);
-                return c.json({ success: false, message: "Not authorized as admin" }, 403);
-            }
+        } else if (!user || !await comparePasswords(password, user.password)) {
+            await recordLoginFailure(c.env, ip, account);
+            return c.json({ success: false, message: LOGIN_FAILED_MESSAGE }, 401);
         }
 
         // Set session (cookie for web) + token (for native app)
@@ -190,11 +153,7 @@ app.post('/admin/login', async (c) => {
         return c.json({ ...userWithoutPassword, token });
     } catch (error: any) {
         console.error('[Admin Login] Unexpected error:', error);
-        return c.json({
-            success: false,
-            message: "Internal Server Error",
-            error: error.message
-        }, 500);
+        return c.json({ success: false, message: "Internal Server Error" }, 500);
     }
 });
 
@@ -248,6 +207,16 @@ app.post('/register', async (c) => {
         return c.json({ success: false, message: "Required fields missing" }, 400);
     }
 
+    // Usernames may repeat (they double as display names), but "@" is reserved for email
+    // sign-in and the admin's username is reserved, so no member can shadow the admin login
+    const username = String(body.username).trim();
+    if (username.includes('@')) {
+        return c.json({ success: false, message: "Хэрэглэгчийн нэрэнд @ тэмдэг ашиглах боломжгүй" }, 400);
+    }
+    if (username.toLowerCase() === (c.env.ADMIN_USERNAME || 'admin').toLowerCase()) {
+        return c.json({ success: false, message: "Энэ хэрэглэгчийн нэрийг ашиглах боломжгүй" }, 400);
+    }
+
     // Check existence
     // Username uniqueness check removed to allow duplicate names
     // const existingUser = await storage.getUserByUsername(body.username);
@@ -263,7 +232,7 @@ app.post('/register', async (c) => {
     // Create user
     const hashedPassword = await hashPassword(body.password);
     const newUser = await storage.createUser({
-        username: body.username,
+        username,
         email: body.email,
         password: hashedPassword,
         name: body.name || "",

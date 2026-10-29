@@ -3,6 +3,7 @@ import { Bindings } from '../types';
 import { requireAdmin } from '../middleware';
 import { PRODUCT_BADGE_MAX_LENGTH, PRODUCT_MAX_IMAGES, UserWithNullablePhone } from '@shared/schema';
 import { D1Storage, IStorage } from '../storage';
+import { cleanPackKg } from '../../shared/pack';
 
 type Env = {
     Bindings: Bindings;
@@ -109,6 +110,8 @@ app.post('/', requireAdmin, async (c) => {
             thumbnailUrl: parsedData.thumbnailUrl || parsedData.thumbnail_url || body['thumbnailUrl'] as string || body['thumbnail_url'] as string || null,
             galleryImages: cleanGallery(parsedData.galleryImages),
             stock: parseInt(String(parsedData.stock ?? body['stock'] ?? '999')),
+            // Not sent (older clients): null keeps the legacy name rule
+            packKg: parsedData.packKg !== undefined ? cleanPackKg(parsedData.packKg) : null,
             minOrderQuantity: parseFloat(parsedData.minOrderQuantity || parsedData.min_order_quantity || body['minOrderQuantity'] as string || body['min_order_quantity'] as string || '1'),
             storeId: parsedData.storeId ? parseInt(parsedData.storeId) : (parsedData.store_id ? parseInt(parsedData.store_id) : (body['storeId'] ? parseInt(body['storeId'] as string) : (body['store_id'] ? parseInt(body['store_id'] as string) : undefined)))
         };
@@ -166,6 +169,7 @@ app.put('/:id', requireAdmin, async (c) => {
         thumbnailUrl: parsedData.thumbnailUrl || body['thumbnailUrl'] || null,
         // Only replaced when the client sends the list (older clients keep existing photos)
         ...(parsedData.galleryImages !== undefined ? { galleryImages: cleanGallery(parsedData.galleryImages) } : {}),
+        ...(parsedData.packKg !== undefined ? { packKg: cleanPackKg(parsedData.packKg) } : {}),
     };
 
     // Clean up types

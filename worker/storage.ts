@@ -23,7 +23,7 @@ import {
     reviews, type Review, type InsertReview
 } from "@shared/schema";
 import { DrizzleDB } from "./db";
-import { eq, desc, and, asc, not, gte, lte, lt, inArray, sql } from "drizzle-orm";
+import { eq, desc, and, or, asc, not, gte, lte, lt, inArray, sql } from "drizzle-orm";
 import { scrypt, randomBytes } from "node:crypto";
 import { promisify } from "node:util";
 
@@ -54,6 +54,7 @@ export interface IStorage {
     getUserByUsername(username: string): Promise<User | undefined>;
     createUser(user: InsertUser): Promise<User>;
     getUserByEmail(email: string): Promise<User | undefined>;
+    getAdminByLogin(login: string): Promise<User | undefined>;
     getUserByGoogleId(googleId: string): Promise<User | undefined>;
     updateUserGoogleId(userId: number, googleId: string, profileImageUrl?: string): Promise<User | undefined>;
     getUserOrders(userId: number): Promise<(Order & { items: (OrderItem & { product: Product })[] })[]>;
@@ -390,6 +391,7 @@ export class D1Storage implements IStorage {
             itemProductId: orderItems.productId,
             itemQuantity: orderItems.quantity,
             itemPrice: orderItems.price,
+            itemPackKg: orderItems.packKg,
 
             // Product fields
             productId: products.id,
@@ -400,6 +402,7 @@ export class D1Storage implements IStorage {
             productImageUrl: products.imageUrl,
             productThumbnailUrl: products.thumbnailUrl,
             productStock: products.stock,
+            productPackKg: products.packKg,
             productStoreId: products.storeId,
             productCreatedAt: products.createdAt
         })
@@ -442,6 +445,7 @@ export class D1Storage implements IStorage {
                     productId: row.itemProductId!,
                     quantity: row.itemQuantity!,
                     price: row.itemPrice!,
+                    packKg: row.itemPackKg ?? null,
                     product: {
                         id: row.productId || row.itemProductId!,
                         name: row.productName || `Устгагдсан бүтээгдэхүүн (ID: ${row.itemProductId})`,
@@ -458,6 +462,7 @@ export class D1Storage implements IStorage {
                         galleryImages: null,
                         stock: row.productStock || 0,
                         minOrderQuantity: 1,
+                        packKg: row.productPackKg ?? null,
                         storeId: row.productStoreId || null,
                         createdAt: row.productCreatedAt || new Date()
                     }
@@ -506,6 +511,7 @@ export class D1Storage implements IStorage {
                     galleryImages: null,
                     stock: 0,
                     minOrderQuantity: 1,
+                    packKg: null,
                     storeId: null,
                     createdAt: new Date()
                 };
@@ -542,6 +548,7 @@ export class D1Storage implements IStorage {
                 productId: item.productId,
                 quantity: item.quantity,
                 price: item.price,
+                packKg: item.packKg ?? null,
             }));
             statements.push(this.db.update(products).set({
                 stock: sql`${products.stock} - ${item.quantity}`,
@@ -590,6 +597,16 @@ export class D1Storage implements IStorage {
 
     async getUserByEmail(email: string): Promise<User | undefined> {
         const result = await this.db.select().from(users).where(eq(users.email, email));
+        return result[0];
+    }
+
+    // Admin sign-in looks only at admin accounts (an email match wins), so a member
+    // registering the same username or email-like name can never shadow the admin
+    async getAdminByLogin(login: string): Promise<User | undefined> {
+        const result = await this.db.select().from(users)
+            .where(and(eq(users.isAdmin, true), or(eq(users.email, login), eq(users.username, login))))
+            .orderBy(desc(sql`${users.email} = ${login}`))
+            .limit(1);
         return result[0];
     }
 

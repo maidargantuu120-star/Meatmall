@@ -23,12 +23,22 @@ export async function recoveryDigest(value: string) {
   const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
   return Array.from(new Uint8Array(bytes), byte => byte.toString(16).padStart(2, '0')).join('');
 }
-export async function recoveryLimit(env: Bindings, scope: string, identifier: string, limit: number): Promise<boolean> {
-  const now = Date.now();
-  const windowStart = Math.floor(now / RECOVERY_TTL_MS) * RECOVERY_TTL_MS;
+// Identifiers are stored only as an HMAC, never as the raw IP or account name
+async function limitKey(env: Bindings, scope: string, identifier: string) {
   const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(env.SESSION_SECRET), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
   const signature = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(scope + '|' + identifier));
-  const rateKey = Array.from(new Uint8Array(signature), byte => byte.toString(16).padStart(2, '0')).join('');
+  return Array.from(new Uint8Array(signature), byte => byte.toString(16).padStart(2, '0')).join('');
+}
+const currentWindow = () => Math.floor(Date.now() / RECOVERY_TTL_MS) * RECOVERY_TTL_MS;
+// Hits so far in the current 15-minute window, without counting this request
+export async function recoveryLimitHits(env: Bindings, scope: string, identifier: string): Promise<number> {
+  const row = await env.DB.prepare('SELECT hits FROM admin_recovery_limits WHERE key = ? AND window_start = ?')
+    .bind(await limitKey(env, scope, identifier), currentWindow()).first<{ hits: number }>();
+  return row?.hits ?? 0;
+}
+export async function recoveryLimit(env: Bindings, scope: string, identifier: string, limit: number): Promise<boolean> {
+  const windowStart = currentWindow();
+  const rateKey = await limitKey(env, scope, identifier);
   const result = await env.DB.prepare(`INSERT INTO admin_recovery_limits (key, window_start, hits) VALUES (?, ?, 1)
     ON CONFLICT(key) DO UPDATE SET window_start = excluded.window_start,
       hits = CASE WHEN admin_recovery_limits.window_start = excluded.window_start THEN admin_recovery_limits.hits + 1 ELSE 1 END

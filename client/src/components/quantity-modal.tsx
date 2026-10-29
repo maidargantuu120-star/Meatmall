@@ -12,7 +12,7 @@ import { Product } from "@shared/schema";
 import { useCart } from "@/hooks/use-cart";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/language-context";
-import { isBulkyMeat } from "@/lib/utils";
+import { linePrice, packKgOf } from "@shared/pack";
 import { useLocation } from "wouter";
 
 interface QuantityModalProps {
@@ -34,20 +34,23 @@ const QuantityModalComponent = ({
   const { addItem, items } = useCart();
   const { toast } = useToast();
   const { t } = useLanguage();
+  // kg per pack: pack products move in whole packs and are priced per pack
+  const packKg = product ? packKgOf(product) : 1;
 
-  // Reset quantity when product changes - set to minimum order quantity
+  // Reset quantity when product changes - minimum order quantity, rounded up to whole packs
   useEffect(() => {
     if (product) {
       const minOrderQty = product.minOrderQuantity
         ? parseFloat(product.minOrderQuantity.toString())
         : 1;
-      setQuantity(minOrderQty);
+      const pack = packKgOf(product);
+      setQuantity(pack > 1 ? Math.max(1, Math.ceil(minOrderQty / pack)) * pack : minOrderQty);
     }
   }, [product]);
 
   // Memoize expensive calculations
   const cartTotal = useMemo(
-    () => items.reduce((sum, item) => sum + item.price * item.quantity, 0),
+    () => items.reduce((sum, item) => sum + linePrice(item.price, item.quantity, packKgOf(item)), 0),
     [items],
   );
 
@@ -56,19 +59,11 @@ const QuantityModalComponent = ({
     [product?.price],
   );
 
-  // Calculate price based on product type
-  const calculatedPrice = useMemo(() => {
-    if (!product) return 0;
-
-    if (isBulkyMeat(product.name)) {
-      // For "Хонины хаа", price is per 4kg package
-      const packages = quantity / 4;
-      return productPrice * packages;
-    } else {
-      // For other products, price is per kg
-      return productPrice * quantity;
-    }
-  }, [product, productPrice, quantity]);
+  // Per pack for pack products, per kg otherwise
+  const calculatedPrice = useMemo(
+    () => (product ? linePrice(productPrice, quantity, packKg) : 0),
+    [product, productPrice, quantity, packKg],
+  );
 
   const totalWithCurrentProduct = useMemo(
     () => cartTotal + calculatedPrice,
@@ -84,10 +79,8 @@ const QuantityModalComponent = ({
     [product?.minOrderQuantity],
   );
 
-  // Determine quantity step (4kg for special products, 1kg for others)
-  const quantityStep = useMemo(() => {
-    return isBulkyMeat(product?.name) ? 4 : 1;
-  }, [product?.name]);
+  // One pack per step for pack products, 1kg for others
+  const quantityStep = packKg;
 
   // Memoize event handlers
   const handleQuantityChange = useCallback(
@@ -106,19 +99,14 @@ const QuantityModalComponent = ({
   const handleAddToCart = useCallback(() => {
     if (!product) return;
 
-    // Calculate the unit price for the cart
-    let unitPrice = productPrice;
-    if (isBulkyMeat(product.name)) {
-      // For "Хонины хаа", store price per 4kg unit
-      unitPrice = productPrice; // ₩50,000 per 4kg package
-    }
-
+    // Pack products keep the per-pack price; packKg tells the cart how to total it
     addItem({
       productId: product.id,
       name: product.name,
-      price: unitPrice,
+      price: productPrice,
       quantity: quantity,
       imageUrl: product.imageUrl,
+      packKg,
     });
 
     toast({
@@ -192,9 +180,9 @@ const QuantityModalComponent = ({
               <label className="text-sm font-medium text-gray-700">
                 {t.quantity}
               </label>
-              {isBulkyMeat(product?.name) ? (
+              {packKg > 1 ? (
                 <span className="text-xs text-orange-600 font-medium">
-                  {t.packageUnit}
+                  {t.packageUnit.replace("{kg}", String(packKg))}
                 </span>
               ) : (
                 minOrderQuantity > 1 && (
@@ -212,7 +200,7 @@ const QuantityModalComponent = ({
                 variant="outline"
                 size="icon"
                 onClick={() => handleQuantityChange(-1)}
-                disabled={quantity <= minOrderQuantity}
+                disabled={quantity - quantityStep < minOrderQuantity}
                 className="h-9 w-9 rounded-full"
               >
                 <Minus className="h-3.5 w-3.5" />
@@ -220,7 +208,7 @@ const QuantityModalComponent = ({
 
               <div className="min-w-[50px] text-center">
                 <span className="text-xl font-bold">
-                  {isBulkyMeat(product?.name) ? `${quantity}кг` : quantity}
+                  {packKg > 1 ? `${quantity}кг` : quantity}
                 </span>
               </div>
 

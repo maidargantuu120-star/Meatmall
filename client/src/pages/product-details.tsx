@@ -11,6 +11,7 @@ import { Carousel, CarouselApi, CarouselContent, CarouselItem } from "@/componen
 import { useCart } from "@/hooks/use-cart";
 import { useToast } from "@/hooks/use-toast";
 import { Product } from "@shared/schema";
+import { packKgOf, priceUnitLabel } from "@shared/pack";
 import { motion } from "framer-motion";
 import { getFullImageUrl } from "@/lib/image-utils";
 import { SectionTitle } from "@/components/section-title";
@@ -64,6 +65,9 @@ export default function ProductDetails() {
     setQuantity(Math.max(1, newQuantity));
   };
 
+  // Pack products (e.g. 4kg boxes): the counter counts packs, the cart stores kg
+  const packKg = product ? packKgOf(product) : 1;
+
   const handleAddToCart = () => {
     if (!product) return;
 
@@ -72,8 +76,9 @@ export default function ProductDetails() {
         productId: product.id,
         name: product.name,
         price: parseFloat(product.price.toString()),
-        quantity,
+        quantity: quantity * packKg,
         imageUrl: product.imageUrl,
+        packKg,
       });
 
       // 트렌디한 토스트 메시지
@@ -175,6 +180,9 @@ export default function ProductDetails() {
               <span className="font-display text-[28px] md:text-4xl font-extrabold leading-none text-brand">
                 {parseFloat(product.price.toString()).toLocaleString()}
               </span>
+              <span className="text-sm md:text-base font-semibold text-ink/50">
+                {priceUnitLabel(packKg)}
+              </span>
             </div>
 
             <div className="my-6 md:my-8 h-px bg-ink/10" />
@@ -182,7 +190,7 @@ export default function ProductDetails() {
             {/* Quantity Selector */}
             <div className="flex items-center justify-between">
               <span className="text-sm md:text-base font-semibold text-ink">
-                Тоо хэмжээ (кг):
+                Тоо хэмжээ ({packKg > 1 ? `${packKg}кг багц` : "кг"}):
               </span>
               <div className="flex items-center rounded border border-ink/15">
                 <button

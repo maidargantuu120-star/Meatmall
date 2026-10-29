@@ -3,6 +3,7 @@ import { Link, useLocation } from "wouter";
 import { useCart } from "@/hooks/use-cart";
 import { formatPrice, getCategoryColor } from "@/lib/utils";
 import { Product } from "@shared/schema";
+import { packKgOf } from "@shared/pack";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
 import { ShoppingCart } from "lucide-react";
@@ -50,8 +51,10 @@ export function ProductCard({ product }: ProductCardProps) {
         productId: id,
         name,
         price: parseFloat(price.toString()),
-        quantity: 1,
+        // One pack for pack products (quantity is in kg), else 1kg
+        quantity: packKgOf(product),
         imageUrl,
+        packKg: packKgOf(product),
       });
 
       toast({
