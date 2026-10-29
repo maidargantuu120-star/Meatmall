@@ -6,7 +6,8 @@ import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
 import { Button } from "@/components/ui/button";
 import { ProductCard } from "@/components/ui/product-card";
-import { formatPrice, getCategoryColor } from "@/lib/utils";
+import { cn, formatPrice, getCategoryColor } from "@/lib/utils";
+import { Carousel, CarouselApi, CarouselContent, CarouselItem } from "@/components/ui/carousel";
 import { useCart } from "@/hooks/use-cart";
 import { useToast } from "@/hooks/use-toast";
 import { Product } from "@shared/schema";
@@ -137,14 +138,11 @@ export default function ProductDetails() {
       {/* Product Detail Section - stacked on mobile, two columns from md */}
       <section className="bg-white">
         <div className="max-w-6xl mx-auto px-4 md:px-8 py-6 md:py-12 grid gap-6 md:grid-cols-2 md:gap-10 lg:gap-14 items-start">
-          {/* Product Image */}
-          <div className="md:sticky md:top-24 overflow-hidden rounded-2xl bg-ink/5 shadow-card">
-            <img
-              src={getFullImageUrl(product.imageUrl)}
-              alt={product.name}
-              className="w-full h-auto object-cover aspect-[4/3] md:aspect-square"
-            />
-          </div>
+          {/* Product photos: main image + gallery (slider when there is more than one) */}
+          <ProductGallery
+            name={product.name}
+            images={[product.imageUrl, ...(product.galleryImages ?? [])].filter(Boolean)}
+          />
 
           {/* Product Info */}
           <div className="md:py-2">
@@ -157,10 +155,16 @@ export default function ProductDetails() {
               {product.name}
             </h1>
 
+            {/* Description from the admin: a soft box so longer, multi-line text reads well */}
             {product.description && (
-              <p className="mt-3 inline-block rounded-full bg-ink px-3 py-1 text-xs md:text-sm font-semibold text-white whitespace-pre-line">
-                {product.description}
-              </p>
+              <div className="mt-4 rounded-2xl bg-surface p-4 md:p-5">
+                <p className="font-display text-xs font-extrabold uppercase tracking-wide text-ink/45">
+                  Тайлбар
+                </p>
+                <p className="mt-1.5 whitespace-pre-line break-words text-sm leading-relaxed text-ink/80 md:text-base">
+                  {product.description}
+                </p>
+              </div>
             )}
 
             {/* Price */}
@@ -280,6 +284,81 @@ export default function ProductDetails() {
       )}
 
       <Footer />
+    </div>
+  );
+}
+
+// Main photo + gallery. One photo: a plain image as before. Several: swipeable slider with
+// dots on the photo and a thumbnail row underneath (tap a thumbnail to jump to it).
+function ProductGallery({ name, images }: { name: string; images: string[] }) {
+  const [api, setApi] = useState<CarouselApi>();
+  const [current, setCurrent] = useState(0);
+
+  useEffect(() => {
+    if (!api) return;
+    const onSelect = () => setCurrent(api.selectedScrollSnap());
+    onSelect();
+    api.on("select", onSelect);
+    return () => { api.off("select", onSelect); };
+  }, [api]);
+
+  const imageClass = "w-full h-auto object-cover aspect-[4/3] md:aspect-square";
+
+  if (images.length <= 1) {
+    return (
+      <div className="md:sticky md:top-24 overflow-hidden rounded-2xl bg-ink/5 shadow-card">
+        <img src={getFullImageUrl(images[0] ?? "")} alt={name} className={imageClass} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="md:sticky md:top-24">
+      <div className="relative overflow-hidden rounded-2xl bg-ink/5 shadow-card">
+        <Carousel setApi={setApi} opts={{ loop: true }}>
+          <CarouselContent className="ml-0">
+            {images.map((src, index) => (
+              <CarouselItem key={src} className="pl-0">
+                <img
+                  src={getFullImageUrl(src)}
+                  alt={`${name} ${index + 1}`}
+                  className={imageClass}
+                  loading={index === 0 ? "eager" : "lazy"}
+                />
+              </CarouselItem>
+            ))}
+          </CarouselContent>
+        </Carousel>
+        <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-1.5">
+          {images.map((src, index) => (
+            <span
+              key={src}
+              aria-hidden="true"
+              className={cn("h-2 rounded-full transition-all", index === current ? "w-6 bg-brand" : "w-2 bg-white/80")}
+            />
+          ))}
+        </div>
+        <span className="absolute right-3 top-3 rounded-full bg-ink/70 px-2.5 py-1 text-xs font-semibold text-white tabular-nums">
+          {current + 1}/{images.length}
+        </span>
+      </div>
+      <div className="mt-3 flex gap-2 overflow-x-auto scrollbar-hide">
+        {images.map((src, index) => (
+          <button
+            key={src}
+            type="button"
+            onClick={() => api?.scrollTo(index)}
+            aria-label={`Зураг ${index + 1}`}
+            aria-current={index === current ? "true" : undefined}
+            className={cn(
+              "h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg bg-ink/5 transition-opacity md:h-20 md:w-20",
+              index === current ? "ring-2 ring-brand" : "opacity-60 hover:opacity-100",
+            )}
+          >
+            <img src={getFullImageUrl(src)} alt="" className="h-full w-full object-cover" loading="lazy" />
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { Bindings } from '../types';
 import { requireAdmin } from '../middleware';
-import { UserWithNullablePhone } from '@shared/schema';
+import { PRODUCT_BADGE_MAX_LENGTH, PRODUCT_MAX_IMAGES, UserWithNullablePhone } from '@shared/schema';
 import { D1Storage, IStorage } from '../storage';
 
 type Env = {
@@ -13,6 +13,29 @@ type Env = {
 };
 
 const app = new Hono<Env>();
+
+// Product card badge: one short line; empty means no badge
+function cleanBadge(value: unknown): string | null {
+    if (typeof value !== 'string') return null;
+    const badge = value.replace(/\s+/g, ' ').trim().slice(0, PRODUCT_BADGE_MAX_LENGTH);
+    return badge || null;
+}
+
+// Extra product photos: image URLs only (site paths such as /uploads/... or http(s); never
+// inline data: images), duplicates dropped, at most PRODUCT_MAX_IMAGES - 1 next to the main imageUrl
+function cleanGallery(value: unknown): string[] | null {
+    let list = value;
+    if (typeof list === 'string') {
+        try { list = JSON.parse(list); } catch { return null; }
+    }
+    if (!Array.isArray(list)) return null;
+    const urls = Array.from(new Set(list
+        .filter((url): url is string => typeof url === 'string')
+        .map((url) => url.trim())
+        .filter((url) => (url.startsWith('/') && !url.startsWith('//')) || /^https?:\/\//.test(url))))
+        .slice(0, PRODUCT_MAX_IMAGES - 1);
+    return urls.length ? urls : null;
+}
 
 app.get('/', async (c) => {
     const storage = c.get('storage');
@@ -79,10 +102,12 @@ app.post('/', requireAdmin, async (c) => {
             description: parsedData.description || body['description'] as string || '',
             descriptionRu: parsedData.descriptionRu || parsedData.description_ru || body['descriptionRu'] as string || body['description_ru'] as string || '',
             descriptionEn: parsedData.descriptionEn || parsedData.description_en || body['descriptionEn'] as string || body['description_en'] as string || '',
+            badge: cleanBadge(parsedData.badge ?? body['badge']),
             price: parseFloat(parsedData.price || body['price'] as string || '0'),
             category: parsedData.category || body['category'] as string,
             imageUrl: imageUrl || parsedData.imageUrl || parsedData.image_url || body['imageUrl'] as string || body['image_url'] as string || '',
             thumbnailUrl: parsedData.thumbnailUrl || parsedData.thumbnail_url || body['thumbnailUrl'] as string || body['thumbnail_url'] as string || null,
+            galleryImages: cleanGallery(parsedData.galleryImages),
             stock: parseInt(String(parsedData.stock ?? body['stock'] ?? '999')),
             minOrderQuantity: parseFloat(parsedData.minOrderQuantity || parsedData.min_order_quantity || body['minOrderQuantity'] as string || body['min_order_quantity'] as string || '1'),
             storeId: parsedData.storeId ? parseInt(parsedData.storeId) : (parsedData.store_id ? parseInt(parsedData.store_id) : (body['storeId'] ? parseInt(body['storeId'] as string) : (body['store_id'] ? parseInt(body['store_id'] as string) : undefined)))
@@ -134,9 +159,13 @@ app.put('/:id', requireAdmin, async (c) => {
         description: parsedData.description || body['description'] || '',
         descriptionRu: parsedData.descriptionRu || body['descriptionRu'] || '',
         descriptionEn: parsedData.descriptionEn || body['descriptionEn'] || '',
+        // Always written so clearing the field removes the badge
+        badge: cleanBadge(parsedData.badge ?? body['badge']),
         category: parsedData.category || body['category'],
         imageUrl: parsedData.imageUrl || body['imageUrl'] || '',
         thumbnailUrl: parsedData.thumbnailUrl || body['thumbnailUrl'] || null,
+        // Only replaced when the client sends the list (older clients keep existing photos)
+        ...(parsedData.galleryImages !== undefined ? { galleryImages: cleanGallery(parsedData.galleryImages) } : {}),
     };
 
     // Clean up types

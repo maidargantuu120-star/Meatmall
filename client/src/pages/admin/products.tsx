@@ -48,12 +48,13 @@ export default function AdminProducts() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
 
-  // Phones: the form renders above the list, so bring it into view when it opens
+  // The form renders above the list (phone and PC), so bring it into view when it opens -
+  // otherwise "Засах" far down the list seems to do nothing until you scroll up
   const formCardRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!isAddingProduct) return;
-    if (!window.matchMedia("(max-width: 767px)").matches) return;
-    formCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    formCardRef.current?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
   }, [isAddingProduct, editingProduct]);
 
   // State for filtering and search
@@ -67,6 +68,33 @@ export default function AdminProducts() {
       return await apiRequest("GET", "/api/products");
     },
   });
+
+  // Category management list - the same names the product form saves (e.g. "Бусад хүнс")
+  const { data: categoryItems = [] } = useQuery<{ id: number; name: string; order?: number }[]>({
+    queryKey: ["categories"],
+    queryFn: async () => {
+      try {
+        return await apiRequest("GET", "/api/categories");
+      } catch {
+        return [];
+      }
+    },
+  });
+
+  // Filter options: managed categories first, then any other value products still carry
+  // (older products), so every product can be found; the fixed list is only a fallback.
+  const managedNames = [...categoryItems]
+    .sort((a, b) => (a.order || 0) - (b.order || 0))
+    .map((category) => category.name);
+  const baseNames = managedNames.length > 0
+    ? managedNames
+    : MEAT_CATEGORIES.filter((category) => category.value !== "all").map((category) => category.value);
+  const extraNames = Array.from(new Set(products.map((product) => product.category)))
+    .filter((name) => name && !baseNames.includes(name));
+  const categoryOptions = [
+    { value: "all", label: "Бүгд" },
+    ...[...baseNames, ...extraNames].map((name) => ({ value: name, label: name })),
+  ];
 
   // Filtered products based on search and category
   const filteredProducts = products.filter((product) => {
@@ -243,7 +271,7 @@ export default function AdminProducts() {
                       <SelectValue placeholder="Ангилал сонгох" />
                     </SelectTrigger>
                     <SelectContent>
-                      {MEAT_CATEGORIES.map((category) => (
+                      {categoryOptions.map((category) => (
                         <SelectItem key={category.value} value={category.value}>
                           {category.label}
                         </SelectItem>

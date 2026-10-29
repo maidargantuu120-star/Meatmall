@@ -26,6 +26,7 @@ import {
   translateOrderStatus,
   getOrderStatusText,
   cn,
+  isBulkyMeat,
 } from "@/lib/utils";
 import {
   Loader2,
@@ -44,6 +45,12 @@ import { PushCard } from "@/components/push-card";
 import { GeneratedMealKitCard } from "@/components/generated-meal-kit-card";
 
 type OrderWithItems = Order & { items: (OrderItem & { product: Product })[] };
+
+// Same rule as the cart and admin receipt: bulky cuts are priced per 4kg package
+function lineTotal(item: { price: number | string; quantity: number; product: { name: string } }) {
+  const price = Number(item.price);
+  return isBulkyMeat(item.product.name) ? price * (item.quantity / 4) : price * item.quantity;
+}
 
 // Statuses that have tracker copy (title / sub) in t.orderTracker
 const TRACKER_STATUSES = ["pending", "processing", "completed", "cancelled"] as const;
@@ -394,6 +401,9 @@ function OrderCard({
 }) {
   const { t, language } = useLanguage();
   const [expanded, setExpanded] = useState(false);
+  // The stored order total includes delivery; the difference to the items is the shipping fee
+  const itemsTotal = order.items.reduce((sum, item) => sum + lineTotal(item), 0);
+  const shippingFee = Math.max(0, Math.round(Number(order.totalAmount) - itemsTotal));
   const [copiedAccount, setCopiedAccount] = useState<number | null>(null);
   const eta = useDeliveryEta(order.status, order.createdAt);
 
@@ -550,39 +560,30 @@ function OrderCard({
                       </p>
                     </div>
                     <div className="flex-shrink-0 font-display font-extrabold text-ink">
-                      {formatPrice(Number(item.price) * item.quantity)}
+                      {formatPrice(lineTotal(item))}
                     </div>
                   </div>
                 ))}
+                {/* Subtotal, shipping (order total minus items, as on the admin receipt) and total */}
+                <dl className="space-y-2 rounded-b-xl bg-surface/60 p-3 text-sm">
+                  <div className="flex justify-between gap-3">
+                    <dt className="text-ink/60">{t.products}</dt>
+                    <dd className="font-semibold text-ink">{formatPrice(itemsTotal)}</dd>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <dt className="text-ink/60">{t.shippingFee}</dt>
+                    <dd className="font-semibold text-ink">{formatPrice(shippingFee)}</dd>
+                  </div>
+                  <div className="flex items-baseline justify-between gap-3 border-t border-ink/10 pt-2">
+                    <dt className="font-display font-extrabold text-ink">{t.totalAmount}</dt>
+                    <dd className="font-display text-lg font-black text-brand">{formatPrice(order.totalAmount)}</dd>
+                  </div>
+                </dl>
               </div>
             </section>
 
-            {/* Delivery and payment details */}
+            {/* Payment first (what to transfer), then delivery details */}
             <div className="grid grid-cols-1 gap-6 border-t border-ink/10 pt-6 md:grid-cols-2">
-              <section>
-                <h4 className="mb-3 flex items-center gap-2 font-display text-sm font-extrabold text-ink">
-                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand/10 text-brand">
-                    <span className="material-icons text-[16px]">home</span>
-                  </span>
-                  {t.deliveryInfo}
-                </h4>
-                <dl className="space-y-2.5 rounded-xl bg-surface p-4 text-sm">
-                  {[
-                    [t.recipient, order.customerName],
-                    [t.phone, order.customerPhone],
-                    [t.email, order.customerEmail],
-                    [t.address, order.customerAddress],
-                  ].map(([label, value]) => (
-                    <div key={label} className="flex gap-3">
-                      <dt className="w-24 flex-shrink-0 text-ink/60">{label}</dt>
-                      <dd className="min-w-0 flex-1 break-words font-semibold text-ink">
-                        {value}
-                      </dd>
-                    </div>
-                  ))}
-                </dl>
-              </section>
-
               <section>
                 <h4 className="mb-3 flex items-center gap-2 font-display text-sm font-extrabold text-ink">
                   <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand/10 text-brand">
@@ -668,6 +669,30 @@ function OrderCard({
                     </div>
                   </dl>
                 </div>
+              </section>
+
+              <section>
+                <h4 className="mb-3 flex items-center gap-2 font-display text-sm font-extrabold text-ink">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand/10 text-brand">
+                    <span className="material-icons text-[16px]">home</span>
+                  </span>
+                  {t.deliveryInfo}
+                </h4>
+                <dl className="space-y-2.5 rounded-xl bg-surface p-4 text-sm">
+                  {[
+                    [t.recipient, order.customerName],
+                    [t.phone, order.customerPhone],
+                    [t.email, order.customerEmail],
+                    [t.address, order.customerAddress],
+                  ].map(([label, value]) => (
+                    <div key={label} className="flex gap-3">
+                      <dt className="w-24 flex-shrink-0 text-ink/60">{label}</dt>
+                      <dd className="min-w-0 flex-1 break-words font-semibold text-ink">
+                        {value}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
               </section>
             </div>
           </div>
