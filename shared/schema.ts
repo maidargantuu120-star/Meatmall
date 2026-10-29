@@ -18,17 +18,27 @@ export const products = sqliteTable("products", {
   description: text("description").notNull(), // Default Mongolian description
   descriptionRu: text("description_ru"), // Russian description
   descriptionEn: text("description_en"), // English description
+  badge: text("badge"), // Short label on the product card photo (admin-written, optional)
   category: text("category").notNull(),
   price: real("price").notNull(),
   imageUrl: text("image_url").notNull(),
   thumbnailUrl: text("thumbnail_url"), // Added thumbnail URL for optimization
+  galleryImages: text("gallery_images", { mode: "json" }).$type<string[]>(), // Extra photos after imageUrl
   stock: integer("stock").notNull().default(0),
   minOrderQuantity: real("min_order_quantity").default(1), // Minimum order quantity in kg
   storeId: integer("store_id"), // Added store ID reference
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const insertProductSchema = createInsertSchema(products).omit({
+// Product card badge: one short line (admin form and API both enforce this)
+export const PRODUCT_BADGE_MAX_LENGTH = 30;
+// Photos per product: the main imageUrl plus up to (max - 1) galleryImages
+export const PRODUCT_MAX_IMAGES = 5;
+
+export const insertProductSchema = createInsertSchema(products, {
+  // JSON column: a list of image URLs (drizzle-zod would otherwise infer a generic JSON type)
+  galleryImages: z.array(z.string()).nullable().optional(),
+}).omit({
   id: true,
   createdAt: true
 });

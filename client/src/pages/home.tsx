@@ -16,7 +16,6 @@ import { useAuth } from "@/hooks/use-auth";
 import {
   useLanguage,
   getLocalizedProductName,
-  getLocalizedProductDescription,
 } from "@/contexts/language-context";
 import { QuantityModal } from "@/components/quantity-modal";
 import { useImagePreloader } from "@/hooks/use-image-preloader";
@@ -445,16 +444,12 @@ export default function HomePage() {
                             }}
                           />
 
-                          {/* Description Badge */}
-                          {product.description && (
+                          {/* Badge: the short "Тэмдэг" label from the admin product form (not the
+                              description, which can be long and lives on the product page) */}
+                          {product.badge && (
                             <div className="absolute top-2.5 left-2.5 max-w-[calc(100%-20px)]">
                               <div className="bg-ink text-white font-semibold text-[11px] md:text-xs px-2.5 py-1 rounded-full w-fit">
-                                <span className="block truncate">
-                                  {getLocalizedProductDescription(
-                                    product,
-                                    language,
-                                  )}
-                                </span>
+                                <span className="block truncate">{product.badge}</span>
                               </div>
                             </div>
                           )}

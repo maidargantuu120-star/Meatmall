@@ -43,25 +43,37 @@ export function MobileBottomNav({
 
   if (!isMobile || isAdminPage) return null;
 
+  // Tapping the tab you are already on scrolls back to the top (navigating to the same
+  // path is a no-op, so the button used to do nothing). Another tab opens at the top.
+  const goTo = (path: string) => {
+    if (location === path) {
+      const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      window.scrollTo({ top: 0, behavior: reduceMotion ? "auto" : "smooth" });
+      return;
+    }
+    setLocation(path);
+    window.scrollTo(0, 0);
+  };
+
   const navItems = [
     {
       icon: Home,
       label: t.home,
       path: "/",
-      onClick: () => setLocation("/"),
+      onClick: () => goTo("/"),
     },
     {
       icon: ShoppingCart,
       label: t.cart,
       path: "/cart",
-      onClick: () => setLocation("/cart"),
+      onClick: () => goTo("/cart"),
       badge: cartItemCount > 0 ? cartItemCount : undefined,
     },
     {
       icon: User,
       label: t.myPage,
       path: "/my-page",
-      onClick: () => setLocation("/my-page"),
+      onClick: () => goTo("/my-page"),
     },
   ];
 
