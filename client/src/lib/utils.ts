@@ -5,26 +5,6 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-// Helper to identify "Хонины хаа" which has special 4kg package rules
-export function isBulkyMeat(name?: string): boolean {
-  if (!name) return false;
-
-  // Convert to lowercase and normalize common latin lookalikes to cyrillic
-  const normalized = name.toLowerCase()
-    .replace(/a/g, 'а')
-    .replace(/o/g, 'о')
-    .replace(/x/g, 'х')
-    .replace(/e/g, 'е');
-
-  // Strip all non-word characters (spaces, punctuation)
-  const clean = normalized.replace(/[\s\W_]+/g, "");
-
-  // Check against stripped permutations
-  return clean.includes("хониныхаа") ||
-    clean.includes("хонинхаа") ||
-    (clean.includes("хонин") && clean.includes("хаа"));
-}
-
 // Format price in KRW (Korean Won)
 export function formatPrice(price: number | string): string {
   const numPrice = typeof price === "string" ? parseFloat(price) : price;

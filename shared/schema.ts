@@ -26,6 +26,7 @@ export const products = sqliteTable("products", {
   galleryImages: text("gallery_images", { mode: "json" }).$type<string[]>(), // Extra photos after imageUrl
   stock: integer("stock").notNull().default(0),
   minOrderQuantity: real("min_order_quantity").default(1), // Minimum order quantity in kg
+  packKg: integer("pack_kg"), // Sold only in packs of this many kg (price is per pack); null/1 = by the kg
   storeId: integer("store_id"), // Added store ID reference
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -81,6 +82,7 @@ export const orderItems = sqliteTable("order_items", {
   productId: integer("product_id").notNull(),
   quantity: real("quantity").notNull(),
   price: real("price").notNull(),
+  packKg: integer("pack_kg"), // Product pack size when ordered (see shared/pack.ts)
 });
 
 export const insertOrderItemSchema = createInsertSchema(orderItems).omit({
@@ -115,6 +117,11 @@ export const loginSchema = z.object({
 
 // Add password validation to signup schema with required email validation
 export const signupSchema = insertUserSchema.extend({
+  // "@" is kept for email sign-in (the API rejects it too)
+  username: z.string()
+    .trim()
+    .min(1, { message: "Хэрэглэгчийн нэр оруулна уу" })
+    .refine(value => !value.includes("@"), { message: "Хэрэглэгчийн нэрэнд @ тэмдэг ашиглах боломжгүй" }),
   password: z.string().min(6, { message: "Нууц үг дор хаяж 6 тэмдэгт байх ёстой" }),
   confirmPassword: z.string(),
   email: z.string()
@@ -326,6 +333,7 @@ export const cartItemSchema = z.object({
   price: z.number(),
   quantity: z.number(),
   imageUrl: z.string(),
+  packKg: z.number().nullable().optional(), // kg per pack; carts saved before this fall back to the name rule
 });
 
 // Define relations for the database

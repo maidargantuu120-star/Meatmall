@@ -10,7 +10,7 @@ import {
 import { CartItem, cartItemSchema } from "@shared/schema";
 import { z } from "zod";
 import { logger } from "@/lib/logger";
-import { isBulkyMeat } from "@/lib/utils";
+import { linePrice, packKgOf } from "@shared/pack";
 
 interface CartContextType {
   items: CartItem[];
@@ -27,45 +27,48 @@ interface CartProviderProps {
   children: ReactNode;
 }
 
-export function CartProvider({ children }: CartProviderProps) {
-  const [items, setItems] = useState<CartItem[]>([]);
+// Saved cart from localStorage, read once when the provider starts. Reading it in the
+// initial state (instead of an effect) means the save effect below can never write an
+// empty cart over the saved one before it has been loaded.
+function readSavedCart(): CartItem[] {
+  try {
+    const savedCart = localStorage.getItem("cart");
+    if (!savedCart) return [];
+    const result = z.array(cartItemSchema).safeParse(JSON.parse(savedCart));
+    return result.success ? result.data : [];
+  } catch (error) {
+    console.error("Failed to parse cart from localStorage:", error);
+    try { localStorage.removeItem("cart"); } catch { /* storage blocked */ }
+    return [];
+  }
+}
 
-  // Memoize total price calculation with special handling for "Хонины хаа"
+export function CartProvider({ children }: CartProviderProps) {
+  const [items, setItems] = useState<CartItem[]>(readSavedCart);
+
+  // Pack products (e.g. 4kg boxes) are priced per pack; the rest per kg
   const totalPrice = useMemo(
-    () =>
-      items.reduce((total, item) => {
-        if (isBulkyMeat(item.name)) {
-          // For "Хонины хаа", price is per 4kg package, so calculate packages
-          const packages = item.quantity / 4;
-          return total + item.price * packages;
-        } else {
-          return total + item.price * item.quantity;
-        }
-      }, 0),
+    () => items.reduce((total, item) => total + linePrice(item.price, item.quantity, packKgOf(item)), 0),
     [items],
   );
 
-  // Load cart from localStorage on mount
-  useEffect(() => {
-    const savedCart = localStorage.getItem("cart");
-    if (savedCart) {
-      try {
-        const parsedCart = JSON.parse(savedCart);
-        const validationResult = z.array(cartItemSchema).safeParse(parsedCart);
-        if (validationResult.success) {
-          setItems(validationResult.data);
-        }
-      } catch (error) {
-        console.error("Failed to parse cart from localStorage:", error);
-        localStorage.removeItem("cart");
-      }
-    }
-  }, []);
-
   // Save cart to localStorage whenever it changes
   useEffect(() => {
-    localStorage.setItem("cart", JSON.stringify(items));
+    try {
+      localStorage.setItem("cart", JSON.stringify(items));
+    } catch {
+      // Storage full or blocked (private mode): the cart still works for this visit
+    }
   }, [items]);
+
+  // Keep other tabs of the shop in step: a cart change in one tab shows up in the others
+  useEffect(() => {
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === "cart") setItems(readSavedCart());
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
 
   // Memoize cart operations
   const addItem = useCallback((newItem: CartItem) => {

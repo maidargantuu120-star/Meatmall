@@ -3,7 +3,8 @@ import { Truck } from "lucide-react";
 import { BrandLogo } from "@/components/brand-logo";
 import { OrderStatusBadge } from "@/components/admin/order-status-badge";
 import { BRAND } from "@/lib/brand";
-import { cn, formatOrderId, formatPrice, isBulkyMeat, normalizeDate } from "@/lib/utils";
+import { cn, formatOrderId, formatPrice, normalizeDate } from "@/lib/utils";
+import { linePrice, orderItemPackKg, packQuantityText } from "@shared/pack";
 import { DEFAULT_SHIPPING_RATES, shippingQuote } from '@shared/shipping';
 import { OrderEmailStatus } from './order-email-status';
 
@@ -11,7 +12,8 @@ export interface ReceiptOrderItem {
   id: number;
   quantity: number;
   price: string | number;
-  product: { name: string; category?: string };
+  packKg?: number | null;
+  product: { name: string; category?: string; packKg?: number | null };
 }
 
 export interface ReceiptOrder {
@@ -27,10 +29,9 @@ export interface ReceiptOrder {
   items: ReceiptOrderItem[];
 }
 
-// "Хонины хаа" style packages are priced per 4kg; everything else per kg
+// Pack products (e.g. 4kg boxes) are priced per pack; everything else per kg
 export function lineTotal(item: ReceiptOrderItem): number {
-  const price = parseFloat(item.price.toString());
-  return isBulkyMeat(item.product.name) ? price * (item.quantity / 4) : price * item.quantity;
+  return linePrice(parseFloat(item.price.toString()), item.quantity, orderItemPackKg(item));
 }
 
 const PAYMENT_LABELS: Record<string, string> = {
@@ -172,7 +173,7 @@ export function OrderReceipt({
                 {formatPrice(lineTotal(item))}
               </span>
               <span className="text-xs text-ink/50 tabular-nums">
-                {formatPrice(item.price)} × {item.quantity} кг
+                {formatPrice(item.price)} × {packQuantityText(item.quantity, orderItemPackKg(item))}
               </span>
             </div>
           ))}

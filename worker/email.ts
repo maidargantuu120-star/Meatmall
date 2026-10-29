@@ -2,8 +2,12 @@ import type { Bindings } from './types';
 import type { OrderEmailReceipt } from '../shared/order-email';
 import { orderNo, won } from './push';
 import { ensureOrderEmailStore } from './order-email-store';
+import { packQuantityText } from '../shared/pack';
 
 const escape = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
+// "₩50,000 × 3 кг", or for pack products "₩120,000 × 2 багц (8 кг)"
+const quantityLine = (item: OrderEmailReceipt['items'][number]) =>
+  `${won(item.price)} × ${packQuantityText(item.quantity, item.packKg ?? 1)}`;
 const SUPPORT = 'meatmall2021@naver.com';
 
 export function renderOrderEmail(id: number, receipt: OrderEmailReceipt, origin: string, supportEmail = SUPPORT) {
@@ -18,7 +22,7 @@ export function renderOrderEmail(id: number, receipt: OrderEmailReceipt, origin:
   const payment = account
     ? `<p style="margin:0 0 8px;font-size:18px;font-weight:bold">${escape(account.bankName)}</p><p style="margin:0 0 8px;font-size:22px;font-weight:bold;letter-spacing:1px">${escape(account.accountNumber)}</p><p style="margin:0">Данс эзэмшигч: ${escape(account.accountHolder)}</p>`
     : '<p>Дансны мэдээллийг авахын тулд дэлгүүртэй холбогдоно уу.</p>';
-  const rows = receipt.items.map(item => `<tr><td style="padding:12px 0;border-bottom:1px solid #eee"><b>${escape(item.name)}</b><br><span style="font-size:12px;color:#777">${escape(won(item.price))} × ${escape(item.quantity)} кг</span></td><td style="padding:12px 0;border-bottom:1px solid #eee;text-align:right;white-space:nowrap">${escape(won(item.amount))}</td></tr>`).join('');
+  const rows = receipt.items.map(item => `<tr><td style="padding:12px 0;border-bottom:1px solid #eee"><b>${escape(item.name)}</b><br><span style="font-size:12px;color:#777">${escape(quantityLine(item))}</span></td><td style="padding:12px 0;border-bottom:1px solid #eee;text-align:right;white-space:nowrap">${escape(won(item.amount))}</td></tr>`).join('');
   const subject = `Meat Mall ${number} — Захиалга хүлээн авлаа`;
   const shippingDetail = receipt.shippingRegion === 'jeju' && receipt.shippingBaseFee !== undefined && receipt.shippingSurcharge !== undefined
     ? `Үндсэн хүргэлт ${won(receipt.shippingBaseFee)} + Чэжү (제주) ${won(receipt.shippingSurcharge)} = ${won(receipt.shippingFee)}` : '';
@@ -36,7 +40,7 @@ export function renderOrderEmail(id: number, receipt: OrderEmailReceipt, origin:
   <p style="text-align:center;margin:24px 0"><a href="${escape(new URL('/my-page', base).href)}" style="display:inline-block;padding:14px 22px;background:#161616;border-radius:8px;color:white;text-decoration:none;font-weight:bold">Миний захиалгууд</a></p>
   <p style="text-align:center;font-size:12px;color:#777;line-height:1.7">Асуух зүйл байвал энэ имэйлд хариу илгээнэ үү.<br><a href="mailto:${escape(supportEmail)}" style="color:#777">${escape(supportEmail)}</a><br>Meat Mall · 010-8082-9929</p>
   </td></tr></table></td></tr></table></body></html>`;
-  const text = `${subject}\n${receipt.customerName}\n${date} (KST)\n\n${receipt.items.map(i => `${i.name} · ${i.quantity} кг · ${won(i.amount)}`).join('\n')}\nБүтээгдэхүүн: ${won(receipt.subtotal)}\nХүргэлт: ${won(receipt.shippingFee)}\nНийт төлөх: ${won(receipt.totalAmount)}\n\n${paymentInstruction}\nТөлбөр шилжүүлэх данс:\n${account ? `${account.bankName}\n${account.accountNumber}\nДанс эзэмшигч: ${account.accountHolder}` : 'Дансны мэдээллийг дэлгүүрээс авна уу.'}\nШилжүүлэгчийн нэр: ${receipt.transferAccountHolder}\nГүйлгээний утга: ${number}\n\nХаяг: ${receipt.customerAddress}\nУтас: ${receipt.customerPhone}\nТөлбөр төлөгдсөнийг батлах баримт биш болно.\n${supportEmail}`;
+  const text = `${subject}\n${receipt.customerName}\n${date} (KST)\n\n${receipt.items.map(i => `${i.name} · ${quantityLine(i)} · ${won(i.amount)}`).join('\n')}\nБүтээгдэхүүн: ${won(receipt.subtotal)}\nХүргэлт: ${won(receipt.shippingFee)}\nНийт төлөх: ${won(receipt.totalAmount)}\n\n${paymentInstruction}\nТөлбөр шилжүүлэх данс:\n${account ? `${account.bankName}\n${account.accountNumber}\nДанс эзэмшигч: ${account.accountHolder}` : 'Дансны мэдээллийг дэлгүүрээс авна уу.'}\nШилжүүлэгчийн нэр: ${receipt.transferAccountHolder}\nГүйлгээний утга: ${number}\n\nХаяг: ${receipt.customerAddress}\nУтас: ${receipt.customerPhone}\nТөлбөр төлөгдсөнийг батлах баримт биш болно.\n${supportEmail}`;
   return { subject, html, text: shippingDetail ? text + '\n' + shippingDetail : text };
 }
 

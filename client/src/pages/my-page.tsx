@@ -26,8 +26,8 @@ import {
   translateOrderStatus,
   getOrderStatusText,
   cn,
-  isBulkyMeat,
 } from "@/lib/utils";
+import { linePrice, orderItemPackKg, packQuantityText } from "@shared/pack";
 import {
   Loader2,
   LogOut,
@@ -46,10 +46,9 @@ import { GeneratedMealKitCard } from "@/components/generated-meal-kit-card";
 
 type OrderWithItems = Order & { items: (OrderItem & { product: Product })[] };
 
-// Same rule as the cart and admin receipt: bulky cuts are priced per 4kg package
-function lineTotal(item: { price: number | string; quantity: number; product: { name: string } }) {
-  const price = Number(item.price);
-  return isBulkyMeat(item.product.name) ? price * (item.quantity / 4) : price * item.quantity;
+// Same rule as the cart and admin receipt: pack products are priced per pack
+function lineTotal(item: OrderWithItems["items"][number]) {
+  return linePrice(Number(item.price), item.quantity, orderItemPackKg(item));
 }
 
 // Statuses that have tracker copy (title / sub) in t.orderTracker
@@ -556,7 +555,7 @@ function OrderCard({
                       </h5>
                       <p className="text-sm text-ink/60">
                         {item.product.category && `${item.product.category} • `}
-                        {formatPrice(Number(item.price))} x {item.quantity}
+                        {formatPrice(Number(item.price))} × {packQuantityText(item.quantity, orderItemPackKg(item))}
                       </p>
                     </div>
                     <div className="flex-shrink-0 font-display font-extrabold text-ink">
